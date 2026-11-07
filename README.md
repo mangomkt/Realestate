@@ -20,6 +20,12 @@ Local test: `php -S localhost:8000` from this folder.
 ## About MLS / IDX
 Full MLS search can't be built from scratch: listing data comes from the board (e.g. TRREB) through an approved IDX/VOW vendor, under board rules (disclaimers, display requirements). Get the embed snippet or feed from your vendor and paste it in Settings. If you need listings stored inside this site's own database (custom search pages), ask the vendor for an RESO Web API / feed and it can be imported into the `properties` table.
 
+## Browser support
+Targets the current and two previous major versions of Chrome, Edge, Firefox and Safari (desktop, Android and iOS). The CSS/JS used (`aspect-ratio`, `clamp()`, flex/grid `gap`, `DataTransfer`) has been available since roughly Chrome/Edge 88, Firefox 89 and Safari 15, so it sits well inside that window. No build step or polyfills. Notes:
+- Drag-and-drop photo ordering uses a mouse/pen; on touch screens use the arrow buttons on each photo.
+- Uploaded video: MP4 (H.264) plays everywhere; WebM is fine on current browsers but MP4 is the safest choice for Safari/iOS.
+- Checked in headless Chrome at phone and desktop widths. Please also spot-check Safari and Firefox before launch.
+
 ## Video uploads
 Raise these in `php.ini` (or `.user.ini`) for large videos:
 ```
