@@ -44,6 +44,9 @@ function db(): PDO
         id INTEGER PRIMARY KEY, user_id INTEGER, property_id INTEGER, name TEXT, email TEXT, phone TEXT,
         message TEXT, source TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     ");
+    // Migration: alt text for SEO on property photos.
+    $cols = array_column($pdo->query('PRAGMA table_info(property_images)')->fetchAll(), 'name');
+    if (!in_array('alt', $cols, true)) $pdo->exec("ALTER TABLE property_images ADD COLUMN alt TEXT DEFAULT ''");
     return $pdo;
 }
 
@@ -172,12 +175,28 @@ function cover_image(int $id): string
     return $f ? url('uploads/' . $f) : url('assets/img/placeholder.svg');
 }
 
+/** Alt text for a photo: the saved text, or a sensible fallback built from the listing. */
+function image_alt(array $p, ?array $im, int $n = 1): string
+{
+    $alt = trim((string)($im['alt'] ?? ''));
+    if ($alt !== '') return $alt;
+    $where = trim(($p['address'] ?? '') . ' ' . ($p['city'] ?? ''));
+    return trim($p['title'] . ($where !== '' ? ' at ' . $where : '') . ' - photo ' . $n);
+}
+function cover_alt(array $p): string
+{
+    $s = db()->prepare('SELECT * FROM property_images WHERE property_id = ? ORDER BY sort, id LIMIT 1');
+    $s->execute([(int)$p['id']]);
+    $im = $s->fetch() ?: null;
+    return $im ? image_alt($p, $im, 1) : $p['title'];
+}
+
 function render_card(array $p): void
 {
     ?>
     <article class="card">
       <a href="<?= url('property.php?id=' . (int)$p['id']) ?>" class="card-img">
-        <img src="<?= e(cover_image((int)$p['id'])) ?>" alt="<?= e($p['title']) ?>" loading="lazy">
+        <img src="<?= e(cover_image((int)$p['id'])) ?>" alt="<?= e(cover_alt($p)) ?>" loading="lazy">
         <span class="badge badge-<?= e($p['status']) ?>"><?= e(STATUSES[$p['status']] ?? $p['status']) ?></span>
       </a>
       <div class="card-body">

@@ -12,6 +12,7 @@
     if (i === 0) b.classList.add('on');
     b.addEventListener('click', function () {
       main.src = b.dataset.full;
+      if (b.dataset.alt) main.alt = b.dataset.alt;
       document.querySelectorAll('.thumbs button').forEach(function (x) { x.classList.remove('on'); });
       b.classList.add('on');
     });

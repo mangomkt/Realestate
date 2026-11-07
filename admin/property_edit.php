@@ -45,27 +45,56 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)$pdo->lastInsertId();
         }
 
-        // remove selected photos
-        foreach ((array)($_POST['del_img'] ?? []) as $imgId) {
-            $s = $pdo->prepare('SELECT filename FROM property_images WHERE id = ? AND property_id = ?');
-            $s->execute([(int)$imgId, $id]);
-            if ($fn = $s->fetchColumn()) {
-                delete_upload($fn);
-                $pdo->prepare('DELETE FROM property_images WHERE id = ?')->execute([(int)$imgId]);
+        $cleanAlt = fn($v) => mb_substr(trim(preg_replace('/\s+/', ' ', strip_tags((string)$v))), 0, 200);
+
+        // existing photos: delete the ticked ones, save alt text for the rest
+        $del = array_map('intval', (array)($_POST['del_img'] ?? []));
+        $altIn = (array)($_POST['img_alt'] ?? []);
+        $ex = $pdo->prepare('SELECT id, filename FROM property_images WHERE property_id = ?');
+        $ex->execute([$id]);
+        foreach ($ex->fetchAll() as $im) {
+            $iid = (int)$im['id'];
+            if (in_array($iid, $del, true)) {
+                delete_upload($im['filename']);
+                $pdo->prepare('DELETE FROM property_images WHERE id = ?')->execute([$iid]);
+            } elseif (isset($altIn[$iid])) {
+                $pdo->prepare('UPDATE property_images SET alt = ? WHERE id = ?')->execute([$cleanAlt($altIn[$iid]), $iid]);
             }
         }
-        // add new photos
+
+        // new photos (index in the upload list => new row id)
         $skipped = 0;
+        $newMap = [];
+        $newAlt = (array)($_POST['new_alt'] ?? []);
         if (!empty($_FILES['images']['name'][0])) {
-            $sort = (int)$pdo->query("SELECT COALESCE(MAX(sort),0) FROM property_images WHERE property_id = $id")->fetchColumn();
             foreach ($_FILES['images']['name'] as $i => $_) {
                 $file = ['name' => $_FILES['images']['name'][$i], 'tmp_name' => $_FILES['images']['tmp_name'][$i],
                          'size' => $_FILES['images']['size'][$i], 'error' => $_FILES['images']['error'][$i]];
                 if ($file['error'] === UPLOAD_ERR_NO_FILE) continue;
                 $name = save_upload($file, 'image');
-                if ($name) $pdo->prepare('INSERT INTO property_images (property_id, filename, sort) VALUES (?,?,?)')->execute([$id, $name, ++$sort]);
-                else $skipped++;
+                if ($name) {
+                    $pdo->prepare('INSERT INTO property_images (property_id, filename, sort, alt) VALUES (?,?,?,?)')
+                        ->execute([$id, $name, 100000 + $i, $cleanAlt($newAlt[$i] ?? '')]);
+                    $newMap[(int)$i] = (int)$pdo->lastInsertId();
+                } else $skipped++;
             }
+        }
+
+        // order: "e:<id>" = existing photo, "n:<index>" = new upload, in the order shown on screen
+        $pos = 0;
+        $placed = [];
+        $setSort = $pdo->prepare('UPDATE property_images SET sort = ? WHERE id = ? AND property_id = ?');
+        foreach ((array)($_POST['order'] ?? []) as $tok) {
+            if (!preg_match('/^([en]):(\d+)$/', (string)$tok, $m)) continue;
+            $iid = $m[1] === 'e' ? (int)$m[2] : ($newMap[(int)$m[2]] ?? 0);
+            if ($iid === 0 || isset($placed[$iid])) continue;
+            $setSort->execute([++$pos, $iid, $id]);
+            $placed[$iid] = true;
+        }
+        $rest = $pdo->prepare('SELECT id FROM property_images WHERE property_id = ? ORDER BY sort, id');
+        $rest->execute([$id]);
+        foreach ($rest->fetchAll(PDO::FETCH_COLUMN) as $iid) {
+            if (!isset($placed[(int)$iid])) $setSort->execute([++$pos, $iid, $id]);
         }
         // video file
         $cur = $pdo->prepare('SELECT video_file FROM properties WHERE id = ?'); $cur->execute([$id]);
@@ -110,14 +139,29 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
     <label class="full">Description<textarea name="description" rows="8"><?= e($p['description']) ?></textarea></label>
 
     <div class="full">
-      <label>Add photos (JPG/PNG/WebP, up to 8 MB each; the first one is the cover)<input type="file" name="images[]" accept="image/jpeg,image/png,image/webp" multiple></label>
-      <?php if ($images): ?>
-        <div class="img-grid">
-          <?php foreach ($images as $im): ?>
-            <label><img src="<?= e(url('uploads/' . $im['filename'])) ?>" alt=""><span class="check" style="display:flex;gap:6px;align-items:center;margin-top:4px"><input type="checkbox" name="del_img[]" value="<?= (int)$im['id'] ?>" style="width:auto"> Remove</span></label>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
+      <h2>Photos</h2>
+      <p class="small muted">Drag the <b>&#8942;&#8942;</b> handle (or use the arrows) to reorder; the first photo is the cover. Describe each photo in the alt text: it helps search engines and screen readers (e.g. "Open-concept kitchen with white cabinets and quartz island").</p>
+      <div id="sort-grid" class="sort-grid" aria-live="polite">
+        <?php foreach ($images as $n => $im): ?>
+          <div class="tile" data-token="e:<?= (int)$im['id'] ?>">
+            <span class="cover-tag">Cover</span>
+            <div class="tile-img">
+              <img src="<?= e(url('uploads/' . $im['filename'])) ?>" alt="" draggable="false">
+              <span class="handle" title="Drag to reorder" aria-hidden="true">&#8942;&#8942;</span>
+            </div>
+            <input type="text" name="img_alt[<?= (int)$im['id'] ?>]" value="<?= e($im['alt'] ?? '') ?>" maxlength="200" placeholder="Alt text (describe this photo)" aria-label="Alt text for photo <?= $n + 1 ?>">
+            <div class="tile-actions">
+              <button type="button" class="mv" data-dir="-1" aria-label="Move earlier">&larr;</button>
+              <button type="button" class="mv" data-dir="1" aria-label="Move later">&rarr;</button>
+              <label class="rm"><input type="checkbox" name="del_img[]" value="<?= (int)$im['id'] ?>"> Remove</label>
+            </div>
+          </div>
+        <?php endforeach; ?>
+      </div>
+      <label class="add-photos">Add photos (JPG/PNG/WebP, up to 8 MB each)
+        <input type="file" id="image-input" name="images[]" accept="image/jpeg,image/png,image/webp" multiple>
+      </label>
+      <p id="img-msg" class="small" role="status"></p>
     </div>
 
     <label>Upload video (MP4/WebM, up to 200 MB)<input type="file" name="video" accept="video/mp4,video/webm"></label>
@@ -130,4 +174,5 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
   <div class="actions"><button class="btn" type="submit">Save property</button><a class="btn btn-ghost" href="properties.php">Cancel</a></div>
 </form>
 <p class="small muted">Large video uploads also depend on your server's <code>upload_max_filesize</code> and <code>post_max_size</code> PHP settings (see README).</p>
+<script src="<?= url('assets/js/admin-images.js') ?>"></script>
 <?php admin_foot(); ?>

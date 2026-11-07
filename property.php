@@ -48,11 +48,11 @@ include __DIR__ . '/includes/header.php';
   <div class="detail-grid">
     <div>
       <div class="gallery">
-        <img id="main-photo" src="<?= e($images ? url('uploads/' . $images[0]['filename']) : url('assets/img/placeholder.svg')) ?>" alt="<?= e($p['title']) ?>">
+        <img id="main-photo" src="<?= e($images ? url('uploads/' . $images[0]['filename']) : url('assets/img/placeholder.svg')) ?>" alt="<?= e($images ? image_alt($p, $images[0], 1) : $p['title']) ?>">
         <?php if (count($images) > 1): ?>
         <div class="thumbs">
-          <?php foreach ($images as $im): ?>
-            <button type="button" data-full="<?= e(url('uploads/' . $im['filename'])) ?>"><img src="<?= e(url('uploads/' . $im['filename'])) ?>" alt="" loading="lazy"></button>
+          <?php foreach ($images as $n => $im): $alt = image_alt($p, $im, $n + 1); ?>
+            <button type="button" data-full="<?= e(url('uploads/' . $im['filename'])) ?>" data-alt="<?= e($alt) ?>" aria-label="<?= e($alt) ?>"><img src="<?= e(url('uploads/' . $im['filename'])) ?>" alt="<?= e($alt) ?>" loading="lazy"></button>
           <?php endforeach; ?>
         </div>
         <?php endif; ?>
