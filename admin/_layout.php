@@ -16,6 +16,9 @@ function admin_head(string $title): void
   <nav>
     <a href="<?= url('admin/') ?>"><strong>Admin</strong></a>
     <a href="<?= url('admin/properties.php') ?>">Properties</a>
+    <a href="<?= url('admin/pages.php') ?>">Pages</a>
+    <a href="<?= url('admin/navigation.php') ?>">Navigation</a>
+    <a href="<?= url('admin/theme.php') ?>">Theme</a>
     <a href="<?= url('admin/leads.php') ?>">Leads</a>
     <a href="<?= url('admin/settings.php') ?>">Settings</a>
   </nav>

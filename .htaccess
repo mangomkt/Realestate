@@ -1,0 +1,6 @@
+# Pretty page URLs: /p/about -> page.php?slug=about
+# Only used when "Pretty URLs" is switched on in Admin > Settings (needs Apache mod_rewrite + AllowOverride).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^p/([a-z0-9-]+)/?$ page.php?slug=$1 [L,QSA]
+</IfModule>

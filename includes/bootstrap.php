@@ -43,12 +43,30 @@ function db(): PDO
     CREATE TABLE IF NOT EXISTS leads (
         id INTEGER PRIMARY KEY, user_id INTEGER, property_id INTEGER, name TEXT, email TEXT, phone TEXT,
         message TEXT, source TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS pages (
+        id INTEGER PRIMARY KEY, title TEXT NOT NULL, slug TEXT NOT NULL UNIQUE, content TEXT,
+        meta_title TEXT, meta_desc TEXT, status TEXT DEFAULT 'published',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP, updated_at TEXT DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS nav_items (
+        id INTEGER PRIMARY KEY, location TEXT NOT NULL, label TEXT NOT NULL, type TEXT NOT NULL,
+        target TEXT DEFAULT '', sort INTEGER DEFAULT 0, visible INTEGER DEFAULT 1, new_tab INTEGER DEFAULT 0);
     ");
+    // First run: seed the menus with the original links (never re-seeded, so deleting items sticks).
+    if (!$pdo->query("SELECT 1 FROM settings WHERE k = 'nav_seeded'")->fetchColumn()) {
+        $ins = $pdo->prepare('INSERT INTO nav_items (location, label, type, target, sort) VALUES (?,?,?,?,?)');
+        foreach ([['header', 'Home', 'home'], ['header', 'Listings', 'listings'], ['header', 'Search All MLS', 'idx'],
+                  ['header', 'Contact', 'contact'], ['footer', 'Listings', 'listings'], ['footer', 'Contact', 'contact']] as $i => $r) {
+            $ins->execute([$r[0], $r[1], 'builtin', $r[2], $i]);
+        }
+        $pdo->exec("INSERT INTO settings (k, v) VALUES ('nav_seeded', '1')");
+    }
     // Migration: alt text for SEO on property photos.
     $cols = array_column($pdo->query('PRAGMA table_info(property_images)')->fetchAll(), 'name');
     if (!in_array('alt', $cols, true)) $pdo->exec("ALTER TABLE property_images ADD COLUMN alt TEXT DEFAULT ''");
     return $pdo;
 }
+
+require_once __DIR__ . '/cms.php';
 
 // ---------- helpers ----------
 function e($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }

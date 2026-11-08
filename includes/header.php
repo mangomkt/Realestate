@@ -12,6 +12,7 @@ $flash = flash();
   <title><?= e(($pageTitle ?? '') !== '' ? $pageTitle . ' | ' . $siteName : $siteName) ?></title>
   <meta name="description" content="<?= e($metaDesc ?? setting('tagline', 'Find your next home.')) ?>">
   <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>">
+  <style><?= theme_css() ?></style>
 </head>
 <body>
 <header class="site-header">
@@ -19,10 +20,9 @@ $flash = flash();
     <a class="logo" href="<?= url() ?>"><?= e($siteName) ?></a>
     <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav">&#9776;</button>
     <nav id="nav" class="nav">
-      <a href="<?= url() ?>">Home</a>
-      <a href="<?= url('listings.php') ?>">Listings</a>
-      <?php if (trim(setting('idx_embed')) !== ''): ?><a href="<?= url('idx.php') ?>">Search All MLS</a><?php endif; ?>
-      <a href="<?= url('contact.php') ?>">Contact</a>
+      <?php foreach (nav_items('header') as $it): ?>
+        <a href="<?= e($it['href']) ?>"<?= $it['new_tab'] ? ' target="_blank" rel="noopener"' : '' ?><?= $it['current'] ? ' aria-current="page"' : '' ?>><?= e($it['label']) ?></a>
+      <?php endforeach; ?>
       <?php if ($user): ?>
         <a href="<?= url('logout.php') ?>">Log out (<?= e(explode(' ', $user['name'])[0]) ?>)</a>
       <?php elseif (setting('registration_enabled', '1') === '1'): ?>

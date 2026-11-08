@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     save_setting('registration_required', isset($_POST['registration_required']) ? '1' : '0');
     save_setting('free_views', (string)max(0, (int)($_POST['free_views'] ?? 2)));
     save_setting('idx_embed', trim($_POST['idx_embed'] ?? ''));
+    save_setting('pretty_urls', isset($_POST['pretty_urls']) ? '1' : '0');
 
     if (($_POST['new_password'] ?? '') !== '') {
         if (strlen($_POST['new_password']) < 10) { flash('Settings saved, but the new password must be 10+ characters, so it was not changed.', 'err'); redirect('admin/settings.php'); }
@@ -53,6 +54,10 @@ admin_head('Settings');
   <label>Page title<input name="idx_title" value="<?= $v('idx_title', 'Search All Listings') ?>"></label>
   <label>IDX embed code (iframe or script from your IDX provider)<textarea name="idx_embed" rows="6" style="font-family:monospace" placeholder="<iframe src=&quot;...&quot;></iframe>"><?= $v('idx_embed') ?></textarea></label>
   <p class="small muted">Paste the snippet your board-approved IDX vendor gives you. A "Search All MLS" page and link appear once this is filled in. Only paste code from a vendor you trust: it runs on your site.</p>
+
+  <h2>Page URLs</h2>
+  <label class="check"><input type="checkbox" name="pretty_urls" value="1" <?= setting('pretty_urls') === '1' ? 'checked' : '' ?>> Use pretty page URLs like /p/about (requires Apache with mod_rewrite; the included .htaccess does the rest)</label>
+  <p class="small muted">If pages show "Not Found" after switching this on, your host does not allow .htaccess rewrites: switch it off again.</p>
 
   <h2>Admin password</h2>
   <label style="max-width:320px">New password (leave blank to keep)<input type="password" name="new_password" minlength="10" autocomplete="new-password"></label>

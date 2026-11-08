@@ -8,6 +8,16 @@
       <?php if (setting('contact_email')): ?><p><a href="mailto:<?= e(setting('contact_email')) ?>"><?= e(setting('contact_email')) ?></a></p><?php endif; ?>
       <?php if (setting('address')): ?><p class="muted"><?= nl2br(e(setting('address'))) ?></p><?php endif; ?>
     </div>
+    <?php if ($fl = nav_items('footer')): ?>
+    <div>
+      <strong>Quick links</strong>
+      <ul class="foot-links">
+        <?php foreach ($fl as $it): ?>
+          <li><a href="<?= e($it['href']) ?>"<?= $it['new_tab'] ? ' target="_blank" rel="noopener"' : '' ?>><?= e($it['label']) ?></a></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+    <?php endif; ?>
     <div>
       <strong>Follow</strong>
       <ul class="social">

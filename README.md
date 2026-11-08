@@ -14,11 +14,18 @@ Local test: `php -S localhost:8000` from this folder.
 - **Public:** home page with search, listings with filters, sorting and pagination, property pages with photo gallery, hosted video or YouTube/Vimeo, inquiry form, contact page, mobile menu.
 - **Lead capture:** visitor registration and login. In Settings you can switch registration on/off and optionally require it after N free listing views (default 2). Registrations, inquiries and contact messages all land in **Leads** (CSV export) and are emailed to your contact address.
 - **Admin:** dashboard, add/edit/delete properties, multiple photos, MP4/WebM upload, featured toggle, leads, settings, password change.
+- **Theme (Admin > Theme):** pick Primary, Secondary and Tertiary colors, button and button-text colors, header, footer, body-text and link colors, plus font and corner style. Five presets, a live preview, readability (contrast) warnings and a reset button.
+- **Pages (Admin > Pages):** create any number of pages (About, Buyer guide, Seller guide...) with a visual editor (headings, lists, links, button links, image upload, YouTube/Vimeo embeds, HTML source mode), a URL name, draft/published status and SEO title and description. Drafts are visible only to the logged-in admin.
+- **Navigation (Admin > Navigation):** edit the header menu and footer links: add, remove, rename, hide, open in a new tab, and drag to reorder. Items can point to a site section, a page, or any custom link.
+- **SEO:** per-photo alt text, per-page title/description, and an XML sitemap at `/sitemap.php` (submit it in Google Search Console).
 - **Social links:** footer links for Facebook, Instagram, YouTube, LinkedIn, X, TikTok.
 - **IDX/MLS:** Settings has an IDX embed field. Paste the iframe/script from your IDX vendor and a "Search All MLS" page appears (also covered by the registration gate).
 
 ## About MLS / IDX
 Full MLS search can't be built from scratch: listing data comes from the board (e.g. TRREB) through an approved IDX/VOW vendor, under board rules (disclaimers, display requirements). Get the embed snippet or feed from your vendor and paste it in Settings. If you need listings stored inside this site's own database (custom search pages), ask the vendor for an RESO Web API / feed and it can be imported into the `properties` table.
+
+## Pages, menus and URLs
+Page content is cleaned on save (an allow-list: no scripts, inline styles or event handlers; iframes only from YouTube and Vimeo), so pasted content cannot break or attack the site. Pages live at `/page.php?slug=about`. For prettier `/p/about` URLs, switch on **Pretty page URLs** in Settings (needs Apache `mod_rewrite`; the bundled `.htaccess` does the rewrite). The Log in / Register links are added to the header automatically when visitor registration is on.
 
 ## Browser support
 Targets the current and two previous major versions of Chrome, Edge, Firefox and Safari (desktop, Android and iOS). The CSS/JS used (`aspect-ratio`, `clamp()`, flex/grid `gap`, `DataTransfer`) has been available since roughly Chrome/Edge 88, Firefox 89 and Safari 15, so it sits well inside that window. No build step or polyfills. Notes:
@@ -43,9 +50,9 @@ YouTube/Vimeo links are lighter on bandwidth for long tours.
 
 ## Structure
 ```
-index.php listings.php property.php contact.php idx.php
+index.php listings.php property.php contact.php idx.php page.php sitemap.php
 register.php login.php logout.php
-admin/   login, dashboard, properties, property_edit, leads, settings
-includes/ bootstrap.php (DB, helpers) header.php footer.php
+admin/   login, dashboard, properties, property_edit, pages, page_edit, navigation, theme, leads, settings, upload
+includes/ bootstrap.php (DB, helpers) cms.php (theme, sanitizer, menus) header.php footer.php
 assets/  css, js, img      uploads/  data/
 ```
