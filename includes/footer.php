@@ -8,7 +8,7 @@
       <?php if (setting('contact_email')): ?><p><a href="mailto:<?= e(setting('contact_email')) ?>"><?= e(setting('contact_email')) ?></a></p><?php endif; ?>
       <?php if (setting('address')): ?><p class="muted"><?= nl2br(e(setting('address'))) ?></p><?php endif; ?>
     </div>
-    <?php if ($fl = nav_items('footer')): ?>
+    <?php if ($fl = nav_items_flat('footer')): ?>
     <div>
       <strong>Quick links</strong>
       <ul class="foot-links">
@@ -29,11 +29,13 @@
       </ul>
     </div>
     <div class="muted small">
+      <?php if (setting('agent_line') !== ''): ?><p class="agent-line"><strong><?= e(setting('agent_line')) ?></strong></p><?php endif; ?>
       <?= e(setting('disclaimer', 'Listing information is deemed reliable but not guaranteed.')) ?>
     </div>
   </div>
   <div class="wrap small muted copy">&copy; <?= date('Y') ?> <?= e(setting('site_name', 'Your Name Realty')) ?></div>
 </footer>
 <script src="<?= url('assets/js/app.js') ?>"></script>
+<?= setting('code_body') ?>
 </body>
 </html>

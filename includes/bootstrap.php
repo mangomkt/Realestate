@@ -50,7 +50,15 @@ function db(): PDO
     CREATE TABLE IF NOT EXISTS nav_items (
         id INTEGER PRIMARY KEY, location TEXT NOT NULL, label TEXT NOT NULL, type TEXT NOT NULL,
         target TEXT DEFAULT '', sort INTEGER DEFAULT 0, visible INTEGER DEFAULT 1, new_tab INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS home_sections (
+        id INTEGER PRIMARY KEY, type TEXT NOT NULL, sort INTEGER DEFAULT 0, enabled INTEGER DEFAULT 1, config TEXT DEFAULT '{}');
     ");
+    // First run: the home page starts with the original layout (hero, featured, latest, call to action).
+    if (!$pdo->query("SELECT 1 FROM settings WHERE k = 'home_seeded'")->fetchColumn()) {
+        $old = $pdo->query("SELECT v FROM settings WHERE k = 'hero_title'")->fetchColumn();
+        home_seed_defaults($pdo, $old !== false && trim((string)$old) !== '' ? trim((string)$old) : null);
+        $pdo->exec("INSERT INTO settings (k, v) VALUES ('home_seeded', '1')");
+    }
     // First run: seed the menus with the original links (never re-seeded, so deleting items sticks).
     if (!$pdo->query("SELECT 1 FROM settings WHERE k = 'nav_seeded'")->fetchColumn()) {
         $ins = $pdo->prepare('INSERT INTO nav_items (location, label, type, target, sort) VALUES (?,?,?,?,?)');
@@ -63,10 +71,25 @@ function db(): PDO
     // Migration: alt text for SEO on property photos.
     $cols = array_column($pdo->query('PRAGMA table_info(property_images)')->fetchAll(), 'name');
     if (!in_array('alt', $cols, true)) $pdo->exec("ALTER TABLE property_images ADD COLUMN alt TEXT DEFAULT ''");
+    // Columns added after the first release (safe to run on every request: only missing ones are added).
+    $newCols = [
+        'nav_items'  => ['parent_id' => 'INTEGER DEFAULT 0'],
+        'pages'      => ['meta_noindex' => 'INTEGER DEFAULT 0', 'meta_image' => "TEXT DEFAULT ''"],
+        'properties' => ['seo_title' => "TEXT DEFAULT ''", 'seo_desc' => "TEXT DEFAULT ''", 'seo_image' => "TEXT DEFAULT ''", 'seo_noindex' => 'INTEGER DEFAULT 0',
+                         'year_built' => 'INTEGER DEFAULT 0', 'lot_size' => "TEXT DEFAULT ''", 'parking' => "TEXT DEFAULT ''",
+                         'taxes' => 'INTEGER DEFAULT 0', 'maintenance_fee' => 'INTEGER DEFAULT 0', 'features' => "TEXT DEFAULT ''",
+                         'virtual_tour_url' => "TEXT DEFAULT ''", 'open_house' => "TEXT DEFAULT ''"],
+    ];
+    foreach ($newCols as $table => $cols) {
+        $have = array_column($pdo->query("PRAGMA table_info($table)")->fetchAll(), 'name');
+        foreach ($cols as $col => $ddl) if (!in_array($col, $have, true)) $pdo->exec("ALTER TABLE $table ADD COLUMN $col $ddl");
+    }
     return $pdo;
 }
 
 require_once __DIR__ . '/cms.php';
+require_once __DIR__ . '/seo.php';
+require_once __DIR__ . '/home.php';
 
 // ---------- helpers ----------
 function e($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -213,13 +236,13 @@ function render_card(array $p): void
 {
     ?>
     <article class="card">
-      <a href="<?= url('property.php?id=' . (int)$p['id']) ?>" class="card-img">
+      <a href="<?= e(property_url($p)) ?>" class="card-img">
         <img src="<?= e(cover_image((int)$p['id'])) ?>" alt="<?= e(cover_alt($p)) ?>" loading="lazy">
         <span class="badge badge-<?= e($p['status']) ?>"><?= e(STATUSES[$p['status']] ?? $p['status']) ?></span>
       </a>
       <div class="card-body">
         <div class="price"><?= money($p['price']) ?><?= $p['status'] === 'for_rent' ? '<small>/mo</small>' : '' ?></div>
-        <h3><a href="<?= url('property.php?id=' . (int)$p['id']) ?>"><?= e($p['title']) ?></a></h3>
+        <h3><a href="<?= e(property_url($p)) ?>"><?= e($p['title']) ?></a></h3>
         <p class="muted"><?= e(trim($p['address'] . ', ' . $p['city'], ', ')) ?></p>
         <ul class="facts">
           <li><?= (int)$p['bedrooms'] ?> bd</li><li><?= rtrim(rtrim(number_format((float)$p['bathrooms'], 1), '0'), '.') ?> ba</li>

@@ -5,7 +5,7 @@ $id = (int)($_GET['id'] ?? 0);
 $st = db()->prepare('SELECT * FROM properties WHERE id = ?');
 $st->execute([$id]);
 $p = $st->fetch();
-if (!$p) { http_response_code(404); $pageTitle = 'Not found'; include __DIR__ . '/includes/header.php'; echo '<div class="wrap section"><h1>Property not found</h1><p><a href="' . url('listings.php') . '">Back to listings</a></p></div>'; include __DIR__ . '/includes/footer.php'; exit; }
+if (!$p) { http_response_code(404); $pageTitle = 'Not found'; $seo = ['robots' => 'noindex']; include __DIR__ . '/includes/header.php'; echo '<div class="wrap section"><h1>Property not found</h1><p><a href="' . url('listings.php') . '">Back to listings</a></p></div>'; include __DIR__ . '/includes/footer.php'; exit; }
 
 gate('p' . $id);
 
@@ -30,8 +30,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $images = property_images($id);
 $embed = $p['video_url'] ? embed_url($p['video_url']) : null;
-$pageTitle = $p['title'];
-$metaDesc = mb_substr(strip_tags((string)$p['description']), 0, 155);
+$seo = seo_for_property($p, $images);
+$seo['jsonld'] = [
+    seo_property_ld($p, $images, $seo),
+    seo_breadcrumb_ld([['Home', url()], ['Listings', url('listings.php')], [$p['title'], property_url($p)]]),
+];
+$features = array_filter(array_map('trim', explode(',', (string)$p['features'])));
+$extras = array_filter([
+    'Year built' => $p['year_built'] ? (string)$p['year_built'] : '',
+    'Lot size' => $p['lot_size'], 'Parking' => $p['parking'],
+    'Property taxes' => $p['taxes'] ? money($p['taxes']) . ' / year' : '',
+    'Maintenance fee' => $p['maintenance_fee'] ? money($p['maintenance_fee']) . ' / month' : '',
+]);
+$mapLink = trim($p['address'] . ' ' . $p['city'] . ' ' . $p['province']) !== '' ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode(trim($p['address'] . ', ' . $p['city'] . ', ' . $p['province'] . ' ' . $p['postal'])) : '';
 include __DIR__ . '/includes/header.php';
 ?>
 <div class="wrap section">
@@ -66,6 +77,16 @@ include __DIR__ . '/includes/header.php';
         <?php if ($p['mls_number']): ?><li><strong><?= e($p['mls_number']) ?></strong> MLS&reg; #</li><?php endif; ?>
       </ul>
 
+      <?php if ($p['open_house']): ?><p class="open-house"><strong>Open house</strong> <?= e($p['open_house']) ?></p><?php endif; ?>
+      <?php if ($extras): ?>
+        <dl class="extras"><?php foreach ($extras as $k => $val): ?><div><dt><?= e($k) ?></dt><dd><?= e($val) ?></dd></div><?php endforeach; ?></dl>
+      <?php endif; ?>
+      <?php if ($features): ?><ul class="chips"><?php foreach ($features as $ft): ?><li><?= e($ft) ?></li><?php endforeach; ?></ul><?php endif; ?>
+      <div class="actions" style="margin:14px 0">
+        <?php if ($p['virtual_tour_url']): ?><a class="btn btn-sm" href="<?= e($p['virtual_tour_url']) ?>" target="_blank" rel="noopener">Take the virtual tour</a><?php endif; ?>
+        <?php if ($mapLink): ?><a class="btn btn-sm btn-ghost" href="<?= e($mapLink) ?>" target="_blank" rel="noopener">View on map</a><?php endif; ?>
+      </div>
+
       <h2>About this property</h2>
       <div class="prose"><?= nl2br(e($p['description'])) ?></div>
 
@@ -80,6 +101,20 @@ include __DIR__ . '/includes/header.php';
           <?php endif; ?>
         </div>
       <?php endif; ?>
+
+    <?php if (setting('mortgage_calc', '1') === '1' && (int)$p['price'] > 0 && $p['status'] !== 'for_rent'): ?>
+      <section class="panel mortgage" id="mortgage" data-price="<?= (int)$p['price'] ?>" data-ca="<?= setting('currency', 'CAD') === 'CAD' ? 1 : 0 ?>">
+        <h3>Mortgage estimate</h3>
+        <div class="form-grid">
+          <label>Purchase price<input id="m-price" inputmode="numeric" value="<?= (int)$p['price'] ?>"></label>
+          <label>Down payment (%)<input id="m-down" type="number" min="0" max="100" step="1" value="20"></label>
+          <label>Interest rate (%)<input id="m-rate" type="number" min="0" max="30" step="0.05" value="<?= e(setting('mortgage_rate', '5')) ?>"></label>
+          <label>Amortization<select id="m-years"><?php foreach ([10, 15, 20, 25, 30] as $y) echo '<option' . ($y === 25 ? ' selected' : '') . ">$y</option>"; ?></select></label>
+        </div>
+        <div class="mortgage-result"><span>Estimated monthly payment</span><strong id="m-pay">&nbsp;</strong>
+          <small id="m-note">Principal and interest only; excludes taxes, insurance and fees. An estimate, not a quote.</small></div>
+      </section>
+    <?php endif; ?>
     </div>
 
     <aside class="side">

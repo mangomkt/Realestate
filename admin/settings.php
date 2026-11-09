@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/_layout.php';
 
-$textKeys = ['site_name', 'tagline', 'hero_title', 'phone', 'contact_email', 'address', 'disclaimer', 'idx_title',
+$textKeys = ['site_name', 'tagline', 'agent_line', 'phone', 'contact_email', 'address', 'disclaimer', 'idx_title',
              'social_facebook', 'social_instagram', 'social_youtube', 'social_linkedin', 'social_x', 'social_tiktok'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -11,6 +11,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     save_setting('registration_required', isset($_POST['registration_required']) ? '1' : '0');
     save_setting('free_views', (string)max(0, (int)($_POST['free_views'] ?? 2)));
     save_setting('idx_embed', trim($_POST['idx_embed'] ?? ''));
+    foreach (['logo', 'logo_dark', 'favicon'] as $k) {
+        $u = trim($_POST[$k] ?? '');
+        save_setting($k, preg_match('#^(https?://|/)[^\s"\'<>]*$#', $u) ? $u : '');
+    }
+    save_setting('mortgage_calc', isset($_POST['mortgage_calc']) ? '1' : '0');
+    $rate = (float)($_POST['mortgage_rate'] ?? 5);
+    save_setting('mortgage_rate', (string)max(0.1, min(25, $rate ?: 5)));
     save_setting('pretty_urls', isset($_POST['pretty_urls']) ? '1' : '0');
 
     if (($_POST['new_password'] ?? '') !== '') {
@@ -36,12 +43,23 @@ admin_head('Settings');
   <div class="form-grid">
     <label>Site / agent name<input name="site_name" value="<?= $v('site_name', 'Your Name Realty') ?>"></label>
     <label>Tagline<input name="tagline" value="<?= $v('tagline', 'Local expertise. Honest advice.') ?>"></label>
-    <label>Home page headline<input name="hero_title" value="<?= $v('hero_title', 'Find a home you love') ?>"></label>
+    <label>Agent / brokerage line (footer)<input name="agent_line" value="<?= $v('agent_line') ?>" placeholder="Jane Doe, Sales Representative, Example Realty Inc., Brokerage"></label>
     <label>Phone<input name="phone" value="<?= $v('phone') ?>"></label>
     <label>Email (leads are sent here)<input type="email" name="contact_email" value="<?= $v('contact_email') ?>"></label>
     <label>Office address<textarea name="address" rows="2"><?= $v('address') ?></textarea></label>
     <label class="full">Footer disclaimer<textarea name="disclaimer" rows="2"><?= $v('disclaimer', 'Listing information is deemed reliable but not guaranteed.') ?></textarea></label>
   </div>
+
+  <h2>Logo and icon</h2>
+  <div class="form-grid">
+    <?php render_image_field('logo', setting('logo'), 'Logo (for light mode)', 'PNG or WebP with a transparent background works best.');
+          render_image_field('logo_dark', setting('logo_dark'), 'Logo (for dark mode, optional)', 'Leave empty to reuse the main logo.');
+          render_image_field('favicon', setting('favicon'), 'Favicon (square, 512px+)', 'The small icon in browser tabs.'); ?>
+  </div>
+
+  <h2>Mortgage calculator</h2>
+  <label class="check"><input type="checkbox" name="mortgage_calc" value="1" <?= setting('mortgage_calc', '1') === '1' ? 'checked' : '' ?>> Show a payment calculator on property pages</label>
+  <label style="max-width:260px">Default interest rate (%)<input type="number" step="0.01" min="0.1" max="25" name="mortgage_rate" value="<?= $v('mortgage_rate', '5') ?>"></label>
 
   <h2>Social media</h2>
   <div class="form-grid">

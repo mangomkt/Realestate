@@ -1,6 +1,8 @@
-# Pretty page URLs: /p/about -> page.php?slug=about
-# Only used when "Pretty URLs" is switched on in Admin > Settings (needs Apache mod_rewrite + AllowOverride).
+# Friendly URLs. Page and property links only use them when "Pretty URLs" is switched on in Admin > Settings.
+# Needs Apache mod_rewrite and AllowOverride. robots.txt is always served from robots.php.
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteRule ^robots\.txt$ robots.php [L]
   RewriteRule ^p/([a-z0-9-]+)/?$ page.php?slug=$1 [L,QSA]
+  RewriteRule ^property/([0-9]+)(-[a-z0-9-]*)?/?$ property.php?id=$1 [L,QSA]
 </IfModule>

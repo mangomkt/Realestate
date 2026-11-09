@@ -4,6 +4,15 @@
   if (!form) return;
   var counter = 0;
 
+  function setDepth(row, d) {
+    row.classList.toggle('is-sub', d === 1);
+    row.querySelector('.nr-depth').value = d;
+  }
+  // The first row can never be a sub-item (nothing above it to attach to).
+  function fixDepths(list) {
+    var first = list.firstElementChild;
+    if (first && first.classList.contains('is-sub')) setDepth(first, 0);
+  }
   function syncRow(row) {
     var type = row.querySelector('.nr-type').value;
     ['builtin', 'page', 'link'].forEach(function (t) {
@@ -13,6 +22,8 @@
     });
     // Label the built-in/page choice for convenience when the label is still empty.
     row.dataset.type = type;
+    var tgt = row.querySelector('.nr-target');
+    if (tgt) tgt.hidden = type === 'none';
   }
   function syncEmpty(list) {
     var empty = list.parentNode.querySelector('.nav-empty');
@@ -57,6 +68,8 @@
     var btn = e.target.closest('.mv');
     if (!btn) return;
     var list2 = row2.parentNode;
+    if (btn.classList.contains('nr-in')) { if (row2.previousElementSibling) setDepth(row2, 1); return; }
+    if (btn.classList.contains('nr-out')) { setDepth(row2, 0); return; }
     if (btn.classList.contains('nr-del')) {
       row2.remove();
       syncEmpty(list2);
@@ -65,6 +78,7 @@
     var dir = parseInt(btn.dataset.dir, 10);
     if (dir < 0 && row2.previousElementSibling) list2.insertBefore(row2, row2.previousElementSibling);
     if (dir > 0 && row2.nextElementSibling) list2.insertBefore(row2.nextElementSibling, row2);
+    fixDepths(list2);
     btn.focus();
   });
 
@@ -95,7 +109,7 @@
   });
   form.addEventListener('drop', function (e) { if (dragged) e.preventDefault(); });
   form.addEventListener('dragend', function () {
-    if (dragged) { dragged.classList.remove('dragging'); dragged.draggable = false; }
+    if (dragged) { dragged.classList.remove('dragging'); dragged.draggable = false; fixDepths(dragged.parentNode); }
     dragged = null;
   });
 })();

@@ -36,7 +36,7 @@ admin_head('Properties');
     </td>
     <td><div class="actions">
       <a class="btn btn-sm btn-ghost" href="property_edit.php?id=<?= (int)$p['id'] ?>">Edit</a>
-      <a class="btn btn-sm btn-ghost" href="<?= url('property.php?id=' . (int)$p['id']) ?>" target="_blank">View</a>
+      <a class="btn btn-sm btn-ghost" href="<?= e(property_url($p)) ?>" target="_blank">View</a>
       <form method="post" data-confirm="Delete this property and its photos?"><?= csrf_field() ?><input type="hidden" name="id" value="<?= (int)$p['id'] ?>"><input type="hidden" name="action" value="delete">
         <button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
     </div></td>

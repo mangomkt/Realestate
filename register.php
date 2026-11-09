@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $pageTitle = 'Register';
+$seo = ['robots' => 'noindex,follow'];
 include __DIR__ . '/includes/header.php';
 ?>
 <div class="wrap narrow section">

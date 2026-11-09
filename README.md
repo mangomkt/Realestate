@@ -16,7 +16,7 @@ Local test: `php -S localhost:8000` from this folder.
 - **Admin:** dashboard, add/edit/delete properties, multiple photos, MP4/WebM upload, featured toggle, leads, settings, password change.
 - **Theme (Admin > Theme):** pick Primary, Secondary and Tertiary colors, button and button-text colors, header, footer, body-text and link colors, plus font and corner style. Five presets, a live preview, readability (contrast) warnings and a reset button.
 - **Pages (Admin > Pages):** create any number of pages (About, Buyer guide, Seller guide...) with a visual editor (headings, lists, links, button links, image upload, YouTube/Vimeo embeds, HTML source mode), a URL name, draft/published status and SEO title and description. Drafts are visible only to the logged-in admin.
-- **Navigation (Admin > Navigation):** edit the header menu and footer links: add, remove, rename, hide, open in a new tab, and drag to reorder. Items can point to a site section, a page, or any custom link.
+- **Navigation (Admin > Navigation):** header menus can have dropdown sub-items (hover, click, keyboard and mobile). Edit the header menu and footer links: add, remove, rename, hide, open in a new tab, and drag to reorder. Items can point to a site section, a page, or any custom link.
 - **SEO:** per-photo alt text, per-page title/description, and an XML sitemap at `/sitemap.php` (submit it in Google Search Console).
 - **Social links:** footer links for Facebook, Instagram, YouTube, LinkedIn, X, TikTok.
 - **IDX/MLS:** Settings has an IDX embed field. Paste the iframe/script from your IDX vendor and a "Search All MLS" page appears (also covered by the registration gate).
@@ -50,9 +50,9 @@ YouTube/Vimeo links are lighter on bandwidth for long tours.
 
 ## Structure
 ```
-index.php listings.php property.php contact.php idx.php page.php sitemap.php
+index.php listings.php robots.php property.php contact.php idx.php page.php sitemap.php
 register.php login.php logout.php
-admin/   login, dashboard, properties, property_edit, pages, page_edit, navigation, theme, leads, settings, upload
-includes/ bootstrap.php (DB, helpers) cms.php (theme, sanitizer, menus) header.php footer.php
+admin/   login, dashboard, properties, property_edit, home, pages, page_edit, navigation, theme, seo, tools, leads, settings, upload
+includes/ bootstrap.php (DB, helpers) cms.php (theme, sanitizer, menus) seo.php home.php header.php footer.php
 assets/  css, js, img      uploads/  data/
 ```

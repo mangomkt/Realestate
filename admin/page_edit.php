@@ -2,7 +2,7 @@
 require_once __DIR__ . '/_layout.php';
 
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
-$p = ['title' => '', 'slug' => '', 'content' => '', 'meta_title' => '', 'meta_desc' => '', 'status' => 'published'];
+$p = ['title' => '', 'slug' => '', 'content' => '', 'meta_title' => '', 'meta_desc' => '', 'status' => 'published', 'meta_noindex' => 0, 'meta_image' => ''];
 if ($id) {
     $st = db()->prepare('SELECT * FROM pages WHERE id = ?');
     $st->execute([$id]);
@@ -19,6 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'meta_title' => mb_substr(trim($_POST['meta_title'] ?? ''), 0, 120),
         'meta_desc'  => mb_substr(trim(preg_replace('/\s+/', ' ', $_POST['meta_desc'] ?? '')), 0, 300),
         'status'     => ($_POST['status'] ?? '') === 'draft' ? 'draft' : 'published',
+        'meta_noindex' => isset($_POST['meta_noindex']) ? 1 : 0,
+        'meta_image' => preg_match('#^(https?://|/)[^\s"\'<>]*$#', trim($_POST['meta_image'] ?? '')) ? trim($_POST['meta_image']) : '',
     ];
     if ($f['title'] === '') $errors[] = 'Title is required.';
     if ($f['slug'] === '') $errors[] = 'Please give the page a URL name (letters and numbers).';
@@ -109,6 +111,9 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
       <textarea name="meta_desc" id="p-md" rows="2" maxlength="300" placeholder="Defaults to the start of the page text"><?= e($p['meta_desc']) ?></textarea>
       <span class="small muted"><span id="md-count">0</span> characters</span></label>
   </div>
+
+  <?php render_image_field('meta_image', (string)$p['meta_image'], 'Social share image (optional)', 'Used when this page is shared. Defaults to the site-wide share image.'); ?>
+  <label class="check"><input type="checkbox" name="meta_noindex" value="1" <?= !empty($p['meta_noindex']) ? 'checked' : '' ?>> Hide this page from search engines</label>
 
   <?php if (!$id): ?>
     <h2>Menus</h2>

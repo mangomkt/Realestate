@@ -4,7 +4,8 @@ require_once __DIR__ . '/_layout.php';
 $id = (int)($_GET['id'] ?? $_POST['id'] ?? 0);
 $p = ['title' => '', 'description' => '', 'price' => '', 'status' => 'for_sale', 'type' => 'house', 'bedrooms' => 3, 'bathrooms' => 2,
       'sqft' => '', 'address' => '', 'city' => '', 'province' => 'ON', 'postal' => '', 'mls_number' => '', 'featured' => 0,
-      'video_file' => '', 'video_url' => ''];
+      'video_file' => '', 'video_url' => '', 'year_built' => '', 'lot_size' => '', 'parking' => '', 'taxes' => '', 'maintenance_fee' => '',
+      'features' => '', 'virtual_tour_url' => '', 'open_house' => '', 'seo_title' => '', 'seo_desc' => '', 'seo_image' => '', 'seo_noindex' => 0];
 if ($id) {
     $st = db()->prepare('SELECT * FROM properties WHERE id = ?'); $st->execute([$id]);
     $p = $st->fetch() ?: redirect('admin/properties.php');
@@ -29,6 +30,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'mls_number' => trim($_POST['mls_number'] ?? ''),
         'featured' => isset($_POST['featured']) ? 1 : 0,
         'video_url' => trim($_POST['video_url'] ?? ''),
+        'year_built' => max(0, min(2100, (int)($_POST['year_built'] ?? 0))),
+        'lot_size' => mb_substr(trim($_POST['lot_size'] ?? ''), 0, 60),
+        'parking' => mb_substr(trim($_POST['parking'] ?? ''), 0, 60),
+        'taxes' => max(0, (int)preg_replace('/\D/', '', $_POST['taxes'] ?? '0')),
+        'maintenance_fee' => max(0, (int)preg_replace('/\D/', '', $_POST['maintenance_fee'] ?? '0')),
+        'features' => implode(', ', array_slice(array_unique(array_filter(array_map(fn($x) => mb_substr(trim($x), 0, 40), preg_split('/[,\n]+/', (string)($_POST['features'] ?? ''))))), 0, 30)),
+        'virtual_tour_url' => preg_match('#^https?://[^\s"\'<>]+$#i', trim($_POST['virtual_tour_url'] ?? '')) ? trim($_POST['virtual_tour_url']) : '',
+        'open_house' => mb_substr(trim($_POST['open_house'] ?? ''), 0, 80),
+        'seo_title' => mb_substr(trim($_POST['seo_title'] ?? ''), 0, 200),
+        'seo_desc' => mb_substr(trim(preg_replace('/\s+/', ' ', $_POST['seo_desc'] ?? '')), 0, 300),
+        'seo_image' => preg_match('#^(https?://|/)[^\s"\'<>]*$#', trim($_POST['seo_image'] ?? '')) ? trim($_POST['seo_image']) : '',
+        'seo_noindex' => isset($_POST['seo_noindex']) ? 1 : 0,
     ];
     if ($f['title'] === '') $errors[] = 'Title is required.';
     if ($f['video_url'] !== '' && !embed_url($f['video_url'])) $errors[] = 'Video URL must be a YouTube or Vimeo link (or upload a file instead).';
@@ -132,6 +145,15 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
     <label>Bedrooms<input type="number" min="0" name="bedrooms" value="<?= e($p['bedrooms']) ?>"></label>
     <label>Bathrooms<input type="number" min="0" step="0.5" name="bathrooms" value="<?= e($p['bathrooms']) ?>"></label>
     <label>Square feet<input type="number" min="0" name="sqft" value="<?= e($p['sqft']) ?>"></label>
+    <label>Year built<input type="number" min="0" max="2100" name="year_built" value="<?= e($p['year_built'] ?: '') ?>"></label>
+    <label>Lot size<input name="lot_size" value="<?= e($p['lot_size']) ?>" placeholder="50 x 120 ft"></label>
+    <label>Parking<input name="parking" value="<?= e($p['parking']) ?>" placeholder="2-car garage"></label>
+    <label>Property taxes ($ / year)<input name="taxes" inputmode="numeric" value="<?= e($p['taxes'] ?: '') ?>"></label>
+    <label>Maintenance fee ($ / month)<input name="maintenance_fee" inputmode="numeric" value="<?= e($p['maintenance_fee'] ?: '') ?>"></label>
+    <label>Open house<input name="open_house" value="<?= e($p['open_house']) ?>" placeholder="Sat Nov 15, 2-4 pm"></label>
+    <label class="full">Features <span class="muted" style="font-weight:400">(comma separated: shown as tags)</span>
+      <input name="features" value="<?= e($p['features']) ?>" placeholder="Hardwood floors, Finished basement, Walk to transit"></label>
+    <label class="full">Virtual tour link (Matterport, YouTube, etc.)<input type="url" name="virtual_tour_url" value="<?= e($p['virtual_tour_url']) ?>" placeholder="https://"></label>
     <label class="full">Street address<input name="address" value="<?= e($p['address']) ?>"></label>
     <label>City<input name="city" value="<?= e($p['city']) ?>"></label>
     <label>Province<input name="province" value="<?= e($p['province']) ?>" maxlength="30"></label>
@@ -171,8 +193,24 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
     <?php endif; ?>
     <label class="check full"><input type="checkbox" name="featured" value="1" <?= $p['featured'] ? 'checked' : '' ?>> Feature on the home page</label>
   </div>
+  <h2>Search engines (SEO)</h2>
+  <p class="small muted">Leave these blank to use the automatic title and description from <a href="seo.php">SEO settings</a>. Type to override, and use tokens like <code>{city}</code> or <code>{price_text}</code> if you like. The preview updates as you type.</p>
+  <div class="form-grid">
+    <label class="full">SEO title<input name="seo_title" id="p-seo-t" maxlength="200" value="<?= e($p['seo_title']) ?>"></label>
+    <label class="full">SEO description<textarea name="seo_desc" id="p-seo-d" rows="2" maxlength="300"><?= e($p['seo_desc']) ?></textarea></label>
+  </div>
+  <div class="seo-box" data-kind="property" data-title-input="#p-seo-t" data-desc-input="#p-seo-d"
+       data-title-default="<?= e(seo_setting('seo_property_title')) ?>" data-desc-default="<?= e(seo_setting('seo_property_desc')) ?>"
+       data-static="<?= e(json_encode(['site' => setting('site_name', 'Your Name Realty'), 'tagline' => setting('tagline'), 'statuses' => STATUSES, 'types' => TYPES])) ?>"
+       data-url="<?= e(parse_url(site_origin(), PHP_URL_HOST) . ($id ? parse_url(property_url($p + ['id' => $id]), PHP_URL_PATH) : url('property.php'))) ?>">
+    <?php include __DIR__ . '/_serp.php'; ?>
+  </div>
+  <?php render_image_field('seo_image', (string)$p['seo_image'], 'Social share image (optional)', 'Defaults to the first photo.'); ?>
+  <label class="check"><input type="checkbox" name="seo_noindex" value="1" <?= !empty($p['seo_noindex']) ? 'checked' : '' ?>> Hide this listing from search engines</label>
+
   <div class="actions"><button class="btn" type="submit">Save property</button><a class="btn btn-ghost" href="properties.php">Cancel</a></div>
 </form>
 <p class="small muted">Large video uploads also depend on your server's <code>upload_max_filesize</code> and <code>post_max_size</code> PHP settings (see README).</p>
 <script src="<?= url('assets/js/admin-images.js') ?>"></script>
+<script src="<?= url('assets/js/admin-seo.js') ?>"></script>
 <?php admin_foot(); ?>

@@ -37,6 +37,8 @@ $rows = $st->fetchAll();
 
 function page_link(int $p): string { $g = $_GET; $g['page'] = $p; return '?' . http_build_query($g); }
 
+$seo = ['canonical' => abs_url(url('listings.php'))];
+if ($_GET) $seo['robots'] = 'noindex,follow';   // filtered / paged result pages: keep out of the index
 include __DIR__ . '/includes/header.php';
 ?>
 <div class="wrap section">
