@@ -54,7 +54,7 @@ function db(): PDO
         id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, filters TEXT NOT NULL, last_property_id INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS home_sections (
-        id INTEGER PRIMARY KEY, type TEXT NOT NULL, sort INTEGER DEFAULT 0, enabled INTEGER DEFAULT 1, config TEXT DEFAULT '{}');
+        id INTEGER PRIMARY KEY, type TEXT NOT NULL, sort INTEGER DEFAULT 0, enabled INTEGER DEFAULT 1, config TEXT DEFAULT '{}', page_id INTEGER DEFAULT 0);
     ");
     // First run: the home page starts with the original layout (hero, featured, latest, call to action).
     if (!$pdo->query("SELECT 1 FROM settings WHERE k = 'home_seeded'")->fetchColumn()) {
@@ -77,6 +77,7 @@ function db(): PDO
     // Columns added after the first release (safe to run on every request: only missing ones are added).
     $newCols = [
         'nav_items'  => ['parent_id' => 'INTEGER DEFAULT 0'],
+        'home_sections' => ['page_id' => 'INTEGER DEFAULT 0'],
         'leads'      => ['status' => "TEXT DEFAULT 'new'", 'notes' => "TEXT DEFAULT ''", 'showing_at' => "TEXT DEFAULT ''"],
         'pages'      => ['meta_noindex' => 'INTEGER DEFAULT 0', 'meta_image' => "TEXT DEFAULT ''"],
         'properties' => ['seo_title' => "TEXT DEFAULT ''", 'seo_desc' => "TEXT DEFAULT ''", 'seo_image' => "TEXT DEFAULT ''", 'seo_noindex' => 'INTEGER DEFAULT 0',
@@ -94,6 +95,7 @@ function db(): PDO
 require_once __DIR__ . '/cms.php';
 require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/home.php';
+require_once __DIR__ . '/home_admin.php';
 require_once __DIR__ . '/search.php';
 
 // ---------- helpers ----------

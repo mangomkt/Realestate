@@ -6,6 +6,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = (int)($_POST['id'] ?? 0);
     if (($_POST['action'] ?? '') === 'delete' && $id) {
         db()->prepare("DELETE FROM nav_items WHERE type = 'page' AND target = ?")->execute([(string)$id]);
+        db()->prepare('DELETE FROM home_sections WHERE page_id = ?')->execute([$id]);
         db()->prepare('DELETE FROM pages WHERE id = ?')->execute([$id]);
         flash('Page deleted (and removed from the menus).');
     } elseif (($_POST['action'] ?? '') === 'toggle' && $id) {

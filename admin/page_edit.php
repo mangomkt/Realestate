@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         }
+        home_save_post($id);
         flash('Page saved.');
         redirect('admin/page_edit.php?id=' . $id);
     }
@@ -102,6 +103,10 @@ foreach ($errors as $er) echo '<div class="flash flash-err">' . e($er) . '</div>
     <input type="file" id="ed-file" accept="image/jpeg,image/png,image/webp" hidden>
     <div class="small muted" id="ed-status" role="status">Tip: to put a button on the page, type its text, select it and click Button, then add the link.</div>
   </div>
+
+  <h2>Sections</h2>
+  <p class="small muted">Add the same building blocks as the home page (hero, listings, call to action, photo + text, team and more) above or below your text. Drag, or use the arrows, to reorder.</p>
+  <?php home_builder_ui($id ?: -1); ?>
 
   <h2>Search engines (SEO)</h2>
   <div class="form-grid">

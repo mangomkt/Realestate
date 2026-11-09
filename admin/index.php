@@ -7,7 +7,7 @@ $steps = [
     ['Name your site and add contact details', setting('site_name', 'Your Name Realty') !== 'Your Name Realty' && setting('contact_email') !== '', 'setup.php'],
     ['Upload your logo and favicon', setting('logo') !== '' && setting('favicon') !== '', 'settings.php'],
     ['Pick your brand colors', db()->query("SELECT 1 FROM settings WHERE k LIKE 'theme\_%' ESCAPE '\\' LIMIT 1")->fetchColumn() !== false, 'theme.php'],
-    ['Arrange your home page', $c("SELECT COUNT(*) FROM home_sections WHERE config != '{}'") > 0, 'home.php'],
+    ['Arrange your home page', $c("SELECT COUNT(*) FROM home_sections WHERE page_id = 0 AND config != '{}'") > 0, 'home.php'],
     ['Add your first property', $c('SELECT COUNT(*) FROM properties') > 0, 'property_edit.php'],
     ['Add an About page', $c('SELECT COUNT(*) FROM pages') > 0, 'page_edit.php'],
     ['Connect IDX / MLS search (optional)', setting('idx_embed') !== '', 'settings.php'],

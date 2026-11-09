@@ -37,9 +37,18 @@ if (($_GET['do'] ?? '') === 'export') {
     }
     $out = ['format' => 're-template', 'version' => 1, 'exported' => date('c'), 'settings' => $set,
         'home' => array_map(fn($r) => ['type' => $r['type'], 'enabled' => (int)$r['enabled'], 'config' => json_decode($r['config'], true) ?: new stdClass()],
-            db()->query('SELECT * FROM home_sections ORDER BY sort, id')->fetchAll()),
+            db()->query('SELECT * FROM home_sections WHERE page_id = 0 ORDER BY sort, id')->fetchAll()),
         'nav' => db()->query('SELECT id, location, label, type, target, sort, visible, new_tab, parent_id FROM nav_items ORDER BY location, sort, id')->fetchAll()];
-    if ($withPages) $out['pages'] = db()->query('SELECT title, slug, content, meta_title, meta_desc, status FROM pages ORDER BY id')->fetchAll();
+    if ($withPages) {
+        $out['pages'] = db()->query('SELECT id, title, slug, content, meta_title, meta_desc, status FROM pages ORDER BY id')->fetchAll();
+        foreach ($out['pages'] as &$pg) {
+            $q = db()->prepare('SELECT type, enabled, config FROM home_sections WHERE page_id = ? ORDER BY sort, id');
+            $q->execute([$pg['id']]);
+            $pg['sections'] = array_map(fn($r) => ['type' => $r['type'], 'enabled' => (int)$r['enabled'], 'config' => json_decode($r['config'], true) ?: new stdClass()], $q->fetchAll());
+            unset($pg['id']);
+        }
+        unset($pg);
+    }
     header('Content-Type: application/json');
     header('Content-Disposition: attachment; filename="site-template-' . date('Y-m-d') . '.json"');
     echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); exit;
@@ -64,8 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_setting($k, (string)$v);
     }
     if (isset($d['home']) && is_array($d['home'])) {
-        $pdo->exec('DELETE FROM home_sections');
-        $ins = $pdo->prepare('INSERT INTO home_sections (type, sort, enabled, config) VALUES (?,?,?,?)');
+        $pdo->exec('DELETE FROM home_sections WHERE page_id = 0');
+        $ins = $pdo->prepare('INSERT INTO home_sections (type, sort, enabled, config, page_id) VALUES (?,?,?,?,0)');
         foreach (array_values($d['home']) as $i => $s) {
             if (!is_array($s) || !isset(HOME_TYPES[$s['type'] ?? ''])) continue;
             $ins->execute([$s['type'], $i, !empty($s['enabled']) ? 1 : 0, json_encode(home_clean_config($s['type'], (array)($s['config'] ?? [])))]);
@@ -88,6 +97,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!is_array($p) || ($slug = slugify((string)($p['slug'] ?? ''))) === '') continue;
             $ins->execute([mb_substr((string)($p['title'] ?? $slug), 0, 200), $slug, sanitize_html((string)($p['content'] ?? '')),
                 mb_substr((string)($p['meta_title'] ?? ''), 0, 200), mb_substr((string)($p['meta_desc'] ?? ''), 0, 400), ($p['status'] ?? '') === 'draft' ? 'draft' : 'published']);
+            if (isset($p['sections']) && is_array($p['sections'])) {
+                $pid = (int)$pdo->query('SELECT id FROM pages WHERE slug = ' . $pdo->quote($slug))->fetchColumn();
+                $pdo->prepare('DELETE FROM home_sections WHERE page_id = ?')->execute([$pid]);
+                $si = $pdo->prepare('INSERT INTO home_sections (type, sort, enabled, config, page_id) VALUES (?,?,?,?,?)');
+                foreach (array_values($p['sections']) as $n => $sec) {
+                    if (!is_array($sec) || !isset(HOME_TYPES[$sec['type'] ?? ''])) continue;
+                    $si->execute([$sec['type'], $n, !empty($sec['enabled']) ? 1 : 0, json_encode(home_clean_config($sec['type'], (array)($sec['config'] ?? []))), $pid]);
+                }
+            }
         }
     }
     $pdo->commit();

@@ -9,6 +9,7 @@ declare(strict_types=1);
  *          repeater (extra = sub-fields, same format)
  */
 const HOME_TYPES = [
+    'content' => ['Page text', 'The text you write in the editor above. Move it up or down among the sections, or switch it off.', []],
     'hero' => ['Hero banner', 'The big opening banner: headline, optional photo background, search box and button.', [
         'headline'     => ['text', 'Headline', 'Find a home you love'],
         'subheadline'  => ['text', 'Sub-headline (blank = your site tagline)', ''],
@@ -96,7 +97,7 @@ const HOME_TYPES = [
 /** The starting layout (also used by "Reset to default layout"). */
 function home_seed_defaults(PDO $pdo, ?string $headline = null): void
 {
-    $ins = $pdo->prepare('INSERT INTO home_sections (type, sort, config) VALUES (?,?,?)');
+    $ins = $pdo->prepare('INSERT INTO home_sections (type, sort, config, page_id) VALUES (?,?,?,0)');
     $layout = [['hero', $headline !== null ? ['headline' => $headline] : []], ['featured', []], ['latest', []], ['cta', []]];
     foreach ($layout as $i => [$type, $cfg]) $ins->execute([$type, $i, json_encode($cfg)]);
 }
@@ -174,19 +175,32 @@ function home_button(string $label, string $url, string $class = 'btn'): string
     return ($label !== '' && $url !== '') ? '<a class="' . $class . '" href="' . e(home_href($url)) . '">' . e($label) . '</a>' : '';
 }
 
-function home_render_all(): void
+/** Print the enabled sections of the home page (page id 0) or of a CMS page. $page is the pages row, for the "Page text" block. */
+function home_render_all(int $pageId = 0, ?array $page = null): void
 {
-    $rows = db()->query('SELECT * FROM home_sections WHERE enabled = 1 ORDER BY sort, id')->fetchAll();
-    $hasHero = (bool)array_filter($rows, fn($r) => $r['type'] === 'hero');
-    if (!$hasHero) echo '<h1 class="sr-only">' . e(setting('site_name', 'Your Name Realty')) . '</h1>';
+    $st = db()->prepare('SELECT * FROM home_sections WHERE enabled = 1 AND page_id = ? ORDER BY sort, id');
+    $st->execute([$pageId]);
+    $rows = $st->fetchAll();
+    $hasH1 = (bool)array_filter($rows, fn($r) => in_array($r['type'], ['hero', 'content'], true));
+    if (!$hasH1) echo '<h1 class="sr-only">' . e($page ? $page['title'] : setting('site_name', 'Your Name Realty')) . '</h1>';
     $first = true;
     foreach ($rows as $row) {
         if (!isset(HOME_TYPES[$row['type']])) continue;
-        $c = home_config($row);
+        if ($row['type'] === 'content') {
+            if ($page) home_sec_content($page, $first);
+            $first = false;
+            continue;
+        }
         $fn = 'home_sec_' . $row['type'];
-        $fn($c, (int)$row['id'], $first);
+        $fn(home_config($row), (int)$row['id'], $first);
         if ($row['type'] === 'hero') $first = false;
     }
+}
+
+function home_sec_content(array $page, bool $first): void
+{
+    $h = $first ? 'h1' : 'h2';
+    echo '<article class="readable section"><' . $h . '>' . e($page['title']) . '</' . $h . '><div class="cms">' . $page['content'] . '</div></article>';
 }
 
 function home_sec_hero(array $c, int $id, bool $first): void
