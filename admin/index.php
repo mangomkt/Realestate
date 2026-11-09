@@ -4,7 +4,7 @@ $c = fn(string $sql) => (int)db()->query($sql)->fetchColumn();
 $leads = db()->query('SELECT l.*, p.title AS ptitle FROM leads l LEFT JOIN properties p ON p.id = l.property_id ORDER BY l.id DESC LIMIT 8')->fetchAll();
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dismiss_setup'])) { csrf_check(); save_setting('setup_dismissed', '1'); redirect('admin/'); }
 $steps = [
-    ['Name your site and add contact details', setting('site_name', 'Your Name Realty') !== 'Your Name Realty' && setting('contact_email') !== '', 'settings.php'],
+    ['Name your site and add contact details', setting('site_name', 'Your Name Realty') !== 'Your Name Realty' && setting('contact_email') !== '', 'setup.php'],
     ['Upload your logo and favicon', setting('logo') !== '' && setting('favicon') !== '', 'settings.php'],
     ['Pick your brand colors', db()->query("SELECT 1 FROM settings WHERE k LIKE 'theme\_%' ESCAPE '\\' LIMIT 1")->fetchColumn() !== false, 'theme.php'],
     ['Arrange your home page', $c("SELECT COUNT(*) FROM home_sections WHERE config != '{}'") > 0, 'home.php'],

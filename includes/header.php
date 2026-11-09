@@ -22,7 +22,7 @@ $flash = flash();
   <script>try{var t=localStorage.getItem('re_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <?= setting('code_head') ?>
 </head>
-<body>
+<body class="<?= e(theme_body_class()) ?>">
 <header class="site-header">
   <div class="wrap bar">
     <?php $logoL = setting('logo'); $logoD = setting('logo_dark') ?: $logoL; ?>
@@ -54,6 +54,7 @@ $flash = flash();
       <?php endif; endforeach; ?>
       <?php if ($ts['toggle']): ?><button type="button" class="theme-toggle" id="theme-toggle" hidden aria-pressed="false" aria-label="Switch to dark mode"><span aria-hidden="true"></span></button><?php endif; ?>
       <?php if ($user): ?>
+        <a href="<?= url('searches.php') ?>">Saved searches</a>
         <a href="<?= url('logout.php') ?>">Log out (<?= e(explode(' ', $user['name'])[0]) ?>)</a>
       <?php elseif (setting('registration_enabled', '1') === '1'): ?>
         <a href="<?= url('login.php') ?>">Log in</a>

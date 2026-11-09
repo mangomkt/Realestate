@@ -19,6 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         save_setting('theme_radius', isset(THEME_RADII[$radius]) ? $radius : '12');
         $mode = $_POST['mode'] ?? 'light';
         save_setting('theme_mode', isset(THEME_MODES[$mode]) ? $mode : 'light');
+        foreach (THEME_VARIANTS as $vk => [, $vo]) {
+            $vv = (string)($_POST['style_' . $vk] ?? '');
+            save_setting('style_' . $vk, isset($vo[$vv]) ? $vv : array_key_first($vo));
+        }
         save_setting('theme_toggle', isset($_POST['toggle']) ? '1' : '0');
         save_setting('theme_dark_auto', isset($_POST['dark_auto']) ? '1' : '0');
         flash('Theme saved.');
@@ -101,6 +105,13 @@ admin_head('Theme');
     <div class="form-grid">
       <label>Font<select name="font" id="t-font"><?php foreach (THEME_FONTS as $k => [$l]) echo '<option value="' . e($k) . '"' . ($ts['font'] === $k ? ' selected' : '') . '>' . e($l) . '</option>'; ?></select></label>
       <label>Corners<select name="radius" id="t-radius"><?php foreach (THEME_RADII as $k => [$l]) echo '<option value="' . e((string)$k) . '"' . ($ts['radius'] === (string)$k ? ' selected' : '') . '>' . e($l) . '</option>'; ?></select></label>
+    </div>
+
+    <h2>Layout</h2>
+    <div class="form-grid">
+      <?php foreach (THEME_VARIANTS as $vk => [$vl, $vo]): ?>
+        <label><?= e($vl) ?><select name="style_<?= e($vk) ?>"><?php foreach ($vo as $ok => $ol) echo '<option value="' . e($ok) . '"' . (theme_variant($vk) === $ok ? ' selected' : '') . '>' . e($ol) . '</option>'; ?></select></label>
+      <?php endforeach; ?>
     </div>
 
     <div id="contrast-warnings" class="flash flash-info" hidden></div>

@@ -9,6 +9,8 @@ if (setting('seo_noindex') === '1') {
     echo 'Disallow: ' . url('admin/') . "\n";
     echo 'Disallow: ' . url('login.php') . "\n";
     echo 'Disallow: ' . url('register.php') . "\n";
+    echo 'Disallow: ' . url('searches.php') . "\n";
+    echo 'Disallow: ' . url('send_alerts.php') . "\n";
     echo "Allow: " . url('uploads/') . "\n";
     echo "\nSitemap: " . abs_url(url('sitemap.php')) . "\n";
 }

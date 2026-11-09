@@ -21,8 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (setting('contact_email') === '') save_setting('contact_email', $email);
             session_regenerate_id(true);
             $_SESSION['admin'] = (int)db()->lastInsertId();
-            flash('Admin account created. Fill in your site details below.');
-            redirect('admin/settings.php');
+            redirect('admin/setup.php');
         }
     } else {
         $st = db()->prepare('SELECT id, password_hash FROM admins WHERE email = ?');

@@ -50,6 +50,9 @@ function db(): PDO
     CREATE TABLE IF NOT EXISTS nav_items (
         id INTEGER PRIMARY KEY, location TEXT NOT NULL, label TEXT NOT NULL, type TEXT NOT NULL,
         target TEXT DEFAULT '', sort INTEGER DEFAULT 0, visible INTEGER DEFAULT 1, new_tab INTEGER DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS saved_searches (
+        id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL, filters TEXT NOT NULL, last_property_id INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE IF NOT EXISTS home_sections (
         id INTEGER PRIMARY KEY, type TEXT NOT NULL, sort INTEGER DEFAULT 0, enabled INTEGER DEFAULT 1, config TEXT DEFAULT '{}');
     ");
@@ -74,6 +77,7 @@ function db(): PDO
     // Columns added after the first release (safe to run on every request: only missing ones are added).
     $newCols = [
         'nav_items'  => ['parent_id' => 'INTEGER DEFAULT 0'],
+        'leads'      => ['status' => "TEXT DEFAULT 'new'", 'notes' => "TEXT DEFAULT ''", 'showing_at' => "TEXT DEFAULT ''"],
         'pages'      => ['meta_noindex' => 'INTEGER DEFAULT 0', 'meta_image' => "TEXT DEFAULT ''"],
         'properties' => ['seo_title' => "TEXT DEFAULT ''", 'seo_desc' => "TEXT DEFAULT ''", 'seo_image' => "TEXT DEFAULT ''", 'seo_noindex' => 'INTEGER DEFAULT 0',
                          'year_built' => 'INTEGER DEFAULT 0', 'lot_size' => "TEXT DEFAULT ''", 'parking' => "TEXT DEFAULT ''",
@@ -90,6 +94,7 @@ function db(): PDO
 require_once __DIR__ . '/cms.php';
 require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/home.php';
+require_once __DIR__ . '/search.php';
 
 // ---------- helpers ----------
 function e($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -234,6 +239,7 @@ function cover_alt(array $p): string
 
 function render_card(array $p): void
 {
+    $addr = e(trim($p['address'] . ', ' . $p['city'], ', '));
     ?>
     <article class="card">
       <a href="<?= e(property_url($p)) ?>" class="card-img">
@@ -243,7 +249,7 @@ function render_card(array $p): void
       <div class="card-body">
         <div class="price"><?= money($p['price']) ?><?= $p['status'] === 'for_rent' ? '<small>/mo</small>' : '' ?></div>
         <h3><a href="<?= e(property_url($p)) ?>"><?= e($p['title']) ?></a></h3>
-        <p class="muted"><?= e(trim($p['address'] . ', ' . $p['city'], ', ')) ?></p>
+        <p class="muted"><?= $addr ?></p>
         <ul class="facts">
           <li><?= (int)$p['bedrooms'] ?> bd</li><li><?= rtrim(rtrim(number_format((float)$p['bathrooms'], 1), '0'), '.') ?> ba</li>
           <?php if ($p['sqft']): ?><li><?= number_format((int)$p['sqft']) ?> sqft</li><?php endif; ?>
@@ -253,13 +259,27 @@ function render_card(array $p): void
     <?php
 }
 
+const LEAD_STATUSES = ['new' => 'New', 'contacted' => 'Contacted', 'showing' => 'Showing booked', 'won' => 'Closed (won)', 'lost' => 'Closed (lost)'];
+
+function mail_clean(string $v): string { return trim(str_replace(["\r", "\n"], ' ', $v)); }
+
 function save_lead(array $d): void
 {
-    db()->prepare('INSERT INTO leads (user_id, property_id, name, email, phone, message, source) VALUES (?,?,?,?,?,?,?)')
-        ->execute([$d['user_id'] ?? null, $d['property_id'] ?? null, $d['name'], $d['email'], $d['phone'] ?? '', $d['message'] ?? '', $d['source']]);
+    db()->prepare('INSERT INTO leads (user_id, property_id, name, email, phone, message, source, showing_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([$d['user_id'] ?? null, $d['property_id'] ?? null, $d['name'], $d['email'], $d['phone'] ?? '', $d['message'] ?? '', $d['source'], $d['showing_at'] ?? '']);
     $to = setting('contact_email');
+    $site = setting('site_name', 'Your Name Realty');
     if ($to !== '' && filter_var($to, FILTER_VALIDATE_EMAIL)) {
-        $body = "New lead from the website\n\nName: {$d['name']}\nEmail: {$d['email']}\nPhone: " . ($d['phone'] ?? '') . "\nSource: {$d['source']}\n\n" . ($d['message'] ?? '');
-        @mail($to, 'New website lead: ' . str_replace(["\r", "\n"], ' ', $d['name']), $body, 'Reply-To: ' . str_replace(["\r", "\n"], '', $d['email']));
+        $body = "New lead from the website\n\nName: {$d['name']}\nEmail: {$d['email']}\nPhone: " . ($d['phone'] ?? '') . "\nSource: {$d['source']}\n"
+            . (!empty($d['showing_at']) ? "Requested showing: {$d['showing_at']}\n" : '') . "\n" . ($d['message'] ?? '');
+        @mail($to, 'New website lead: ' . mail_clean($d['name']), $body, 'Reply-To: ' . mail_clean($d['email']));
+    }
+    // Optional automatic reply to the visitor.
+    if (setting('autoreply_on') === '1' && filter_var($d['email'], FILTER_VALIDATE_EMAIL) && (string)$d['source'] !== 'registration') {
+        $text = setting('autoreply_text') ?: "Hi {name},\n\nThanks for getting in touch. I have your message and will reply personally as soon as I can.\n\n{site}";
+        $text = strtr($text, ['{name}' => mail_clean($d['name']), '{site}' => $site, '{phone}' => setting('phone')]);
+        $from = ($to !== '' && filter_var($to, FILTER_VALIDATE_EMAIL)) ? $to : 'noreply@' . preg_replace('/^www\./', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+        @mail($d['email'], mail_clean(setting('autoreply_subject') ?: 'Thanks for contacting ' . $site), $text,
+            'From: ' . mail_clean($site) . ' <' . $from . ">\r\nReply-To: " . $from);
     }
 }

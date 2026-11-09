@@ -139,6 +139,24 @@ function theme_palette(string $mode = 'light'): array
     return $dark;
 }
 
+/** Structural style choices: key => [label, [option => label]]. First option is the default. */
+const THEME_VARIANTS = [
+    'cards'   => ['Listing cards', ['classic' => 'Classic (border + lift)', 'flat' => 'Flat (no border, soft shadow)', 'overlay' => 'Photo overlay (text on the photo)', 'minimal' => 'Minimal (no box)']],
+    'header'  => ['Header', ['left' => 'Logo left, menu right', 'center' => 'Logo centered, menu below', 'brand' => 'Brand-colored bar']],
+    'footer'  => ['Footer', ['columns' => 'Columns', 'simple' => 'Simple, centered', 'brand' => 'Brand-colored band']],
+    'buttons' => ['Buttons', ['solid' => 'Solid', 'outline' => 'Outline', 'soft' => 'Soft tint']],
+];
+function theme_variant(string $k): string
+{
+    $v = setting('style_' . $k);
+    return isset(THEME_VARIANTS[$k][1][$v]) ? $v : array_key_first(THEME_VARIANTS[$k][1]);
+}
+/** Classes for <body>, e.g. "cards-flat hdr-center". */
+function theme_body_class(): string
+{
+    return 'cards-' . theme_variant('cards') . ' hdr-' . theme_variant('header') . ' ftr-' . theme_variant('footer') . ' btn-' . theme_variant('buttons');
+}
+
 function theme_settings(): array
 {
     $mode = setting('theme_mode', 'light');

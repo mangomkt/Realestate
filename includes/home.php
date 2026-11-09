@@ -60,6 +60,22 @@ const HOME_TYPES = [
             ['quote' => 'Professional, patient and always available. We found our home in three weeks.', 'name' => 'A happy client', 'role' => 'Home buyer'],
         ], ['quote' => ['textarea', 'Quote', ''], 'name' => ['text', 'Name', ''], 'role' => ['text', 'Role or place', '']], '+ Add quote'],
     ]],
+    'sold' => ['Recently sold', 'A gallery of your sold listings, good social proof. Mark a property as Sold to include it.', [
+        'title' => ['text', 'Heading', 'Recently sold'],
+        'count' => ['number', 'How many to show (1 to 12)', 3, ['min' => 1, 'max' => 12]],
+    ]],
+    'tiles' => ['Neighbourhoods / areas', 'Photo tiles for the areas you serve, each linking to a search or a page.', [
+        'title' => ['text', 'Heading', 'Areas I serve'],
+        'items' => ['repeater', 'Areas', [
+            ['name' => 'Downtown', 'blurb' => 'Condos and lofts near everything', 'image' => '', 'link' => 'listings.php?q=Downtown'],
+        ], ['name' => ['text', 'Name', ''], 'blurb' => ['text', 'One-line description', ''], 'image' => ['image', 'Photo', ''], 'link' => ['url', 'Link', '']], '+ Add area'],
+    ]],
+    'team' => ['Team', 'Photos and short bios for each agent on your team.', [
+        'title' => ['text', 'Heading', 'Meet the team'],
+        'items' => ['repeater', 'Team members', [
+            ['name' => 'Your Name', 'role' => 'Sales Representative', 'bio' => '', 'image' => '', 'email' => '', 'phone' => ''],
+        ], ['name' => ['text', 'Name', ''], 'role' => ['text', 'Role', ''], 'image' => ['image', 'Photo', ''], 'bio' => ['textarea', 'Short bio', ''], 'email' => ['text', 'Email', ''], 'phone' => ['text', 'Phone', '']], '+ Add team member'],
+    ]],
     'cta' => ['Call to action', 'A band with a message and a button.', [
         'heading'      => ['text', 'Heading', 'Thinking of buying or selling?'],
         'text'         => ['text', 'Text', 'Get in touch for a no-pressure conversation.'],
@@ -123,7 +139,9 @@ function home_clean_config(string $type, array $in): array
                     $any = false;
                     foreach ($extra as $sk => $sd) {
                         $sv = trim((string)($r[$sk] ?? ''));
-                        $sv = $sd[0] === 'textarea' ? mb_substr($sv, 0, 1000) : mb_substr(preg_replace('/\s+/', ' ', $sv), 0, 200);
+                        if ($sd[0] === 'image') $sv = preg_match('#^(https?://|/)[^\s"\'<>]*$#', $sv) ? $sv : '';
+                        elseif ($sd[0] === 'url') $sv = $sv !== '' ? (nav_clean_url($sv) ?? '') : '';
+                        else $sv = $sd[0] === 'textarea' ? mb_substr($sv, 0, 1000) : mb_substr(preg_replace('/\s+/', ' ', $sv), 0, 200);
                         $row[$sk] = $sv;
                         if ($sv !== '') $any = true;
                     }
@@ -352,6 +370,60 @@ function home_sec_html(array $c, int $id, bool $first): void
     <section class="wrap section">
       <?php if ($c['title'] !== ''): ?><h2><?= e($c['title']) ?></h2><?php endif; ?>
       <?= $c['code'] /* trusted admin code, printed as written */ ?>
+    </section>
+    <?php
+}
+
+function home_sec_sold(array $c, int $id, bool $first): void
+{
+    $n = max(1, min(12, (int)$c['count']));
+    $rows = db()->query("SELECT * FROM properties WHERE status = 'sold' ORDER BY created_at DESC, id DESC LIMIT $n")->fetchAll();
+    if (!$rows) return;
+    ?>
+    <section class="wrap section">
+      <h2><?= e($c['title']) ?></h2>
+      <div class="grid"><?php foreach ($rows as $p) render_card($p); ?></div>
+    </section>
+    <?php
+}
+
+function home_sec_tiles(array $c, int $id, bool $first): void
+{
+    $items = array_values(array_filter((array)$c['items'], fn($i) => trim((string)($i['name'] ?? '')) !== ''));
+    if (!$items) return;
+    ?>
+    <section class="wrap section">
+      <?php if ($c['title'] !== ''): ?><h2><?= e($c['title']) ?></h2><?php endif; ?>
+      <div class="area-grid">
+        <?php foreach ($items as $i): $href = home_href((string)($i['link'] ?? '')); ?>
+          <<?= $href !== '' ? 'a href="' . e($href) . '"' : 'div' ?> class="area-tile"<?= ($i['image'] ?? '') !== '' ? ' style="background-image:url(\'' . e($i['image']) . '\')"' : '' ?>>
+            <span class="area-text"><strong><?= e($i['name']) ?></strong><?php if (($i['blurb'] ?? '') !== ''): ?><span><?= e($i['blurb']) ?></span><?php endif; ?></span>
+          </<?= $href !== '' ? 'a' : 'div' ?>>
+        <?php endforeach; ?>
+      </div>
+    </section>
+    <?php
+}
+
+function home_sec_team(array $c, int $id, bool $first): void
+{
+    $items = array_values(array_filter((array)$c['items'], fn($i) => trim((string)($i['name'] ?? '')) !== ''));
+    if (!$items) return;
+    ?>
+    <section class="wrap section">
+      <?php if ($c['title'] !== ''): ?><h2><?= e($c['title']) ?></h2><?php endif; ?>
+      <div class="team-grid">
+        <?php foreach ($items as $i): ?>
+          <article class="member">
+            <?php if (($i['image'] ?? '') !== ''): ?><img src="<?= e($i['image']) ?>" alt="<?= e($i['name']) ?>" loading="lazy"><?php endif; ?>
+            <h3><?= e($i['name']) ?></h3>
+            <?php if (($i['role'] ?? '') !== ''): ?><p class="muted"><?= e($i['role']) ?></p><?php endif; ?>
+            <?= home_paras((string)($i['bio'] ?? '')) ?>
+            <?php if (($i['email'] ?? '') !== '' && filter_var($i['email'], FILTER_VALIDATE_EMAIL)): ?><p><a href="mailto:<?= e($i['email']) ?>"><?= e($i['email']) ?></a></p><?php endif; ?>
+            <?php if (($i['phone'] ?? '') !== ''): ?><p><a href="tel:<?= e(preg_replace('/[^\d+]/', '', $i['phone'])) ?>"><?= e($i['phone']) ?></a></p><?php endif; ?>
+          </article>
+        <?php endforeach; ?>
+      </div>
     </section>
     <?php
 }

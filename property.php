@@ -20,9 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['website'] ?? '') !== '') { redirect('property.php?id=' . $id); } // honeypot
     if ($name === '') $errors[] = 'Please enter your name.';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email.';
+    $showing = '';
+    $sd = trim($_POST['showing_date'] ?? '');
+    if ($sd !== '') {
+        $dt = DateTime::createFromFormat('!Y-m-d', $sd);
+        if (!$dt || $dt->format('Y-m-d') !== $sd || $dt < new DateTime('today')) $errors[] = 'Please choose a showing date that is today or later.';
+        else $showing = $sd . ' (' . (['morning' => 'morning', 'afternoon' => 'afternoon', 'evening' => 'evening'][$_POST['showing_time'] ?? ''] ?? 'any time') . ')';
+    }
     if (!$errors) {
         save_lead(['user_id' => $user['id'] ?? null, 'property_id' => $id, 'name' => $name, 'email' => $email,
-            'phone' => $phone, 'message' => $msg, 'source' => 'property inquiry']);
+            'phone' => $phone, 'message' => $msg, 'source' => $showing !== '' ? 'showing request' : 'property inquiry', 'showing_at' => $showing]);
         flash('Thanks! I will be in touch shortly.');
         redirect('property.php?id=' . $id);
     }
@@ -128,6 +135,10 @@ include __DIR__ . '/includes/header.php';
           <label>Email<input type="email" name="email" required value="<?= e($_POST['email'] ?? $user['email'] ?? '') ?>"></label>
           <label>Phone<input type="tel" name="phone" value="<?= e($_POST['phone'] ?? $user['phone'] ?? '') ?>"></label>
           <label>Message<textarea name="message" rows="4"><?= e($_POST['message'] ?? 'I would like more information about ' . $p['title'] . '.') ?></textarea></label>
+          <fieldset class="showing"><legend>Want to see it? (optional)</legend>
+            <label>Preferred date<input type="date" name="showing_date" min="<?= date('Y-m-d') ?>" value="<?= e($_POST['showing_date'] ?? '') ?>"></label>
+            <label>Time of day<select name="showing_time"><option value="any">Any time</option><option value="morning">Morning</option><option value="afternoon">Afternoon</option><option value="evening">Evening</option></select></label>
+          </fieldset>
           <button class="btn block" type="submit">Request info / book a showing</button>
         </form>
       </div>

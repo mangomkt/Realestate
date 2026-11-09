@@ -2,22 +2,26 @@
 require_once __DIR__ . '/includes/bootstrap.php';
 $pageTitle = 'Listings';
 
-$where = ['1=1'];
-$args = [];
-$q = trim($_GET['q'] ?? '');
-if ($q !== '') {
-    $where[] = '(city LIKE :q OR address LIKE :q OR mls_number LIKE :q OR title LIKE :q OR postal LIKE :q)';
-    $args[':q'] = '%' . $q . '%';
+$f = search_clean($_GET);
+[$where, $args] = search_where($f);
+$q = $f['q'] ?? '';
+$status = $f['status'] ?? '';
+$type = $f['type'] ?? '';
+
+// Logged-in visitors can save the current search to get email alerts.
+$user = current_user();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_search'])) {
+    csrf_check();
+    if ($user) {
+        $mx = (int)db()->query('SELECT COALESCE(MAX(id),0) FROM properties')->fetchColumn();
+        $dup = db()->prepare('SELECT 1 FROM saved_searches WHERE user_id = ? AND filters = ?');
+        $json = json_encode(search_clean($_POST));
+        $dup->execute([$user['id'], $json]);
+        if (!$dup->fetchColumn()) db()->prepare('INSERT INTO saved_searches (user_id, filters, last_property_id) VALUES (?,?,?)')->execute([$user['id'], $json, $mx]);
+        flash('Search saved. We will email you when new matches are listed.');
+    }
+    redirect('listings.php' . ($f ? '?' . http_build_query($f) : ''));
 }
-$status = $_GET['status'] ?? '';
-if (isset(STATUSES[$status])) { $where[] = 'status = :status'; $args[':status'] = $status; }
-$type = $_GET['type'] ?? '';
-if (isset(TYPES[$type])) { $where[] = 'type = :type'; $args[':type'] = $type; }
-foreach (['min' => ['price >= :min', 'min'], 'max' => ['price <= :max', 'max']] as $k => [$sql]) {
-    if (($_GET[$k] ?? '') !== '' && ctype_digit((string)$_GET[$k])) { $where[] = $sql; $args[':' . $k] = (int)$_GET[$k]; }
-}
-if (($_GET['beds'] ?? '') !== '' && ctype_digit((string)$_GET['beds'])) { $where[] = 'bedrooms >= :beds'; $args[':beds'] = (int)$_GET['beds']; }
-if (($_GET['baths'] ?? '') !== '' && ctype_digit((string)$_GET['baths'])) { $where[] = 'bathrooms >= :baths'; $args[':baths'] = (int)$_GET['baths']; }
 
 $orders = ['new' => 'created_at DESC', 'low' => 'price ASC', 'high' => 'price DESC'];
 $sort = $_GET['sort'] ?? 'new';
@@ -62,6 +66,17 @@ include __DIR__ . '/includes/header.php';
     </select>
     <button class="btn" type="submit">Filter</button>
   </form>
+  <?php if ($f && setting('registration_enabled', '1') === '1'): ?>
+    <?php if ($user): ?>
+      <form method="post" class="save-search"><?= csrf_field() ?>
+        <?php foreach ($f as $k => $v) echo '<input type="hidden" name="' . e($k) . '" value="' . e($v) . '">'; ?>
+        <button class="btn btn-sm btn-ghost" name="save_search" value="1">&#9733; Email me new matches for this search</button>
+        <a class="small" href="<?= url('searches.php') ?>">My saved searches</a>
+      </form>
+    <?php else: ?>
+      <p class="small"><a href="<?= url('login.php') ?>">Log in</a> or <a href="<?= url('register.php') ?>">register</a> to get emailed when new listings match this search.</p>
+    <?php endif; ?>
+  <?php endif; ?>
 
   <p class="muted"><?= $total ?> propert<?= $total === 1 ? 'y' : 'ies' ?> found</p>
   <?php if ($rows): ?>

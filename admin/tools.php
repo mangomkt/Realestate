@@ -5,7 +5,7 @@ require_once __DIR__ . '/_layout.php';
 function tools_identity_key(string $k): bool
 {
     return in_array($k, ['site_name', 'tagline', 'agent_line', 'phone', 'contact_email', 'address', 'disclaimer', 'logo', 'logo_dark', 'favicon',
-        'idx_title', 'idx_embed', 'home_seeded', 'seo_default_image', 'seo_gsc', 'seo_bing'], true) || str_starts_with($k, 'social_') || str_contains($k, 'verification') || str_contains($k, 'analytics');
+        'idx_title', 'idx_embed', 'home_seeded', 'seo_default_image', 'seo_gsc', 'seo_bing', 'site_url', 'analytics_ga4', 'analytics_plausible'], true) || str_starts_with($k, 'social_') || str_contains($k, 'verification') || str_contains($k, 'analytics');
 }
 
 if (($_GET['do'] ?? '') === 'backup') {
@@ -31,7 +31,7 @@ if (($_GET['do'] ?? '') === 'export') {
     $withPages = !empty($_GET['pages']);
     $set = [];
     foreach (db()->query('SELECT k, v FROM settings') as $r) {
-        if (str_starts_with($r['k'], 'admin_') || $r['k'] === 'setup_dismissed') continue;
+        if (str_starts_with($r['k'], 'admin_') || in_array($r['k'], ['setup_dismissed', 'alerts_key'], true)) continue;
         if (!$withId && tools_identity_key($r['k'])) continue;
         $set[$r['k']] = $r['v'];
     }
@@ -45,6 +45,12 @@ if (($_GET['do'] ?? '') === 'export') {
     echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['new_key'])) {
+    csrf_check();
+    save_setting('alerts_key', bin2hex(random_bytes(16)));
+    flash('New alert key created.');
+    redirect('admin/tools.php');
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $f = $_FILES['template'] ?? null;
@@ -54,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pdo = db();
     $pdo->beginTransaction();
     foreach ((array)($d['settings'] ?? []) as $k => $v) {
-        if (!is_string($k) || !is_scalar($v) || !preg_match('/^[a-z0-9_]{1,60}$/', $k) || str_starts_with($k, 'admin_')) continue;
+        if (!is_string($k) || !is_scalar($v) || !preg_match('/^[a-z0-9_]{1,60}$/', $k) || str_starts_with($k, 'admin_') || $k === 'alerts_key') continue;
         save_setting($k, (string)$v);
     }
     if (isset($d['home']) && is_array($d['home'])) {
@@ -90,8 +96,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 admin_head('Tools');
+$ak = setting('alerts_key');
 ?>
 <div class="panel">
+  <h2>New-listing alerts</h2>
+  <p class="muted">Visitors can save searches and get emailed when matching listings appear. Set it up once: add a scheduled job (cron) on your host, hourly or daily, running:</p>
+  <?php if (setting('site_url') === ''): ?><div class="flash flash-info">Set your Website address in <a href="settings.php">Settings</a> first, so links in alert emails are complete.</div><?php endif; ?>
+  <p><code>php <?= e(realpath(__DIR__ . '/../send_alerts.php')) ?></code></p>
+  <p class="muted">If your host only offers web-address cron jobs, use this address instead:</p>
+  <p><code><?= $ak !== '' ? e(abs_url(url('send_alerts.php')) . '?key=' . $ak) : 'Create a key first' ?></code></p>
+  <form method="post"><?= csrf_field() ?><button class="btn btn-sm btn-ghost" name="new_key" value="1"><?= $ak === '' ? 'Create web key' : 'Replace web key' ?></button></form>
+</div>
+<div class="panel" style="margin-top:18px">
   <h2>Back up</h2>
   <p class="muted">Download everything (database and uploaded photos/videos) as one zip. Do this before big changes and keep a copy off the server.</p>
   <a class="btn" href="?do=backup">Download backup</a>

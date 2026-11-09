@@ -15,6 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $u = trim($_POST[$k] ?? '');
         save_setting($k, preg_match('#^(https?://|/)[^\s"\'<>]*$#', $u) ? $u : '');
     }
+    $su = rtrim(trim($_POST['site_url'] ?? ''), '/');
+    save_setting('site_url', preg_match('#^https?://[^\s"\'<>]+$#i', $su) ? $su : '');
+    save_setting('autoreply_on', isset($_POST['autoreply_on']) ? '1' : '0');
+    save_setting('autoreply_subject', mb_substr(trim($_POST['autoreply_subject'] ?? ''), 0, 150));
+    save_setting('autoreply_text', mb_substr(trim($_POST['autoreply_text'] ?? ''), 0, 3000));
+    save_setting('cookie_banner', isset($_POST['cookie_banner']) ? '1' : '0');
+    save_setting('cookie_text', mb_substr(trim($_POST['cookie_text'] ?? ''), 0, 400));
+    $ga = strtoupper(trim($_POST['analytics_ga4'] ?? ''));
+    save_setting('analytics_ga4', preg_match('/^G-[A-Z0-9]{4,15}$/', $ga) ? $ga : '');
+    $pl = trim($_POST['analytics_plausible'] ?? '');
+    save_setting('analytics_plausible', preg_match('/^[a-z0-9.\-]+\.[a-z]{2,}$/i', $pl) ? strtolower($pl) : '');
     save_setting('mortgage_calc', isset($_POST['mortgage_calc']) ? '1' : '0');
     $rate = (float)($_POST['mortgage_rate'] ?? 5);
     save_setting('mortgage_rate', (string)max(0.1, min(25, $rate ?: 5)));
@@ -49,6 +60,24 @@ admin_head('Settings');
     <label>Office address<textarea name="address" rows="2"><?= $v('address') ?></textarea></label>
     <label class="full">Footer disclaimer<textarea name="disclaimer" rows="2"><?= $v('disclaimer', 'Listing information is deemed reliable but not guaranteed.') ?></textarea></label>
   </div>
+
+  <label>Website address (used in alert emails, e.g. https://www.janedoe.ca)<input name="site_url" value="<?= $v('site_url') ?>" placeholder="https://"></label>
+
+  <h2>Automatic reply to leads</h2>
+  <label class="check"><input type="checkbox" name="autoreply_on" value="1" <?= setting('autoreply_on') === '1' ? 'checked' : '' ?>> Email visitors a confirmation when they send an inquiry or contact message</label>
+  <div class="form-grid">
+    <label>Subject<input name="autoreply_subject" value="<?= $v('autoreply_subject') ?>" placeholder="Thanks for contacting <?= $v('site_name', 'Your Name Realty') ?>"></label>
+    <label class="full">Message ({name}, {site} and {phone} are filled in)<textarea name="autoreply_text" rows="5" placeholder="Hi {name}, thanks for getting in touch..."><?= $v('autoreply_text') ?></textarea></label>
+  </div>
+
+  <h2>Privacy and analytics</h2>
+  <div class="form-grid">
+    <label>Google Analytics 4 measurement ID<input name="analytics_ga4" value="<?= $v('analytics_ga4') ?>" placeholder="G-XXXXXXXXXX"></label>
+    <label>Plausible domain (optional)<input name="analytics_plausible" value="<?= $v('analytics_plausible') ?>" placeholder="example.com"></label>
+  </div>
+  <label class="check"><input type="checkbox" name="cookie_banner" value="1" <?= setting('cookie_banner') === '1' ? 'checked' : '' ?>> Show a cookie notice and only load analytics after a visitor accepts</label>
+  <label>Cookie notice text<input name="cookie_text" value="<?= $v('cookie_text') ?>" placeholder="We use cookies to understand how the site is used."></label>
+  <p class="small muted">Many regions (including Canada and the EU) expect consent before analytics cookies. If you only use Plausible, no banner is needed. Tell your client to check local rules.</p>
 
   <h2>Logo and icon</h2>
   <div class="form-grid">
