@@ -54,5 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <label>Password<input type="password" name="password" required <?= $hasAdmin ? '' : 'minlength="10"' ?>></label>
     <button class="btn block" type="submit"><?= $hasAdmin ? 'Log in' : 'Create account' ?></button>
   </form>
+  <?php if ($hasAdmin): ?><p class="small muted"><a href="<?= url('reset_admin.php') ?>">Forgot your password?</a></p><?php endif; ?>
 </div>
 </body></html>

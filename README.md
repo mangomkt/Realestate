@@ -21,6 +21,10 @@ Local test: `php -S localhost:8000` from this folder.
 - **Social links:** footer links for Facebook, Instagram, YouTube, LinkedIn, X, TikTok.
 - **IDX/MLS:** Settings has an IDX embed field. Paste the iframe/script from your IDX vendor and a "Search All MLS" page appears (also covered by the registration gate).
 
+## Forgot the admin password?
+- With shell access: `php reset_admin.php "new-password-10+chars" [admin@email.com]`.
+- Without it: create an empty file `data/RESET_ADMIN` using your host's file manager or FTP, open `/reset_admin.php` in your browser and choose a new password. The file deletes itself afterwards, and the page is switched off (404) whenever that file is absent.
+
 ## About MLS / IDX
 Full MLS search can't be built from scratch: listing data comes from the board (e.g. TRREB) through an approved IDX/VOW vendor, under board rules (disclaimers, display requirements). Get the embed snippet or feed from your vendor and paste it in Settings. If you need listings stored inside this site's own database (custom search pages), ask the vendor for an RESO Web API / feed and it can be imported into the `properties` table.
 
