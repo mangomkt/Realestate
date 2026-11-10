@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $font = $_POST['font'] ?? 'system';
         save_setting('theme_font', isset(THEME_FONTS[$font]) ? $font : 'system');
+        save_setting('theme_webfonts', isset($_POST['webfonts']) ? '1' : '0');
         $radius = (string)($_POST['radius'] ?? '12');
         save_setting('theme_radius', isset(THEME_RADII[$radius]) ? $radius : '12');
         $mode = $_POST['mode'] ?? 'light';
@@ -104,6 +105,7 @@ admin_head('Theme');
     <h2>Style</h2>
     <div class="form-grid">
       <label>Font<select name="font" id="t-font"><?php foreach (THEME_FONTS as $k => [$l]) echo '<option value="' . e($k) . '"' . ($ts['font'] === $k ? ' selected' : '') . '>' . e($l) . '</option>'; ?></select></label>
+      <label class="check" style="align-self:end"><input type="checkbox" name="webfonts" value="1" <?= setting('theme_webfonts', '1') === '1' ? 'checked' : '' ?>> Load the chosen web fonts from Google Fonts (turn off for strict privacy; a similar system font is used instead)</label>
       <label>Corners<select name="radius" id="t-radius"><?php foreach (THEME_RADII as $k => [$l]) echo '<option value="' . e((string)$k) . '"' . ($ts['radius'] === (string)$k ? ' selected' : '') . '>' . e($l) . '</option>'; ?></select></label>
     </div>
 
@@ -124,7 +126,7 @@ admin_head('Theme');
 
   <aside class="theme-preview-wrap">
     <h2>Live preview <small class="muted" id="pv-mode" style="font-weight:400">(light)</small></h2>
-    <div id="preview" class="pv" data-radii="<?= e(json_encode(array_map(fn($r) => array_slice($r, 1), THEME_RADII))) ?>" data-fonts="<?= e(json_encode(array_map(fn($f) => $f[1], THEME_FONTS))) ?>">
+    <div id="preview" class="pv" data-radii="<?= e(json_encode(array_map(fn($r) => array_slice($r, 1), THEME_RADII))) ?>" data-fonts="<?= e(json_encode(array_map(fn($f) => [$f[1], $f[2]], THEME_FONTS))) ?>">
       <div class="pv-header"><span class="pv-logo">Your Name Realty</span><span class="pv-nav"><span class="on">Home</span><span>Listings</span><span>Contact</span><span class="pv-btn pv-btn-sm">Register</span></span></div>
       <div class="pv-hero"><h3>Find a home you love</h3><p>Local expertise. Honest advice.</p><span class="pv-search">City, address or MLS&reg; #</span></div>
       <div class="pv-body">
@@ -140,4 +142,13 @@ admin_head('Theme');
   </aside>
 </div>
 <script src="<?= url('assets/js/admin-theme.js') ?>"></script>
+<link rel="stylesheet" id="font-link" href="" disabled>
+<script>
+(function () {
+  var sel = document.getElementById('t-font'), link = document.getElementById('font-link');
+  var q = <?= json_encode(array_map(fn($f) => $f[3], THEME_FONTS)) ?>;
+  function load() { var s = q[sel.value]; if (s) { link.href = 'https://fonts.googleapis.com/css2?' + s + '&display=swap'; link.disabled = false; } else link.disabled = true; }
+  sel.addEventListener('change', load); load();
+})();
+</script>
 <?php admin_foot(); ?>

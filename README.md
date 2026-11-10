@@ -57,7 +57,7 @@ YouTube/Vimeo links are lighter on bandwidth for long tours.
 ```
 index.php listings.php robots.php property.php contact.php idx.php page.php sitemap.php
 register.php login.php logout.php searches.php send_alerts.php
-admin/   login, setup, dashboard, properties, property_edit, home, pages, page_edit, navigation, theme, seo, tools, leads, settings, upload
-includes/ bootstrap.php (DB, helpers) cms.php (theme, sanitizer, menus) seo.php home.php search.php header.php footer.php
+admin/   login, two_factor, security, looks, setup, dashboard, properties, property_edit, home, pages, page_edit, navigation, theme, seo, tools, leads, settings, upload
+includes/ security.php looks.php demo.php bootstrap.php (DB, helpers) cms.php (theme, sanitizer, menus) seo.php home.php search.php header.php footer.php
 assets/  css, js, img      uploads/  data/
 ```

@@ -14,15 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $u = trim($_POST[$k] ?? '');
         if (preg_match('#^(https?://|/)[^\s"\'<>]*$#', $u)) save_setting($k, $u);
     }
-    $presets = theme_presets();
-    $pre = $_POST['preset'] ?? '';
-    if (isset($presets[$pre])) foreach ($presets[$pre] as $k => $v) save_setting('theme_' . $k, $v);
-    $mode = $_POST['mode'] ?? '';
-    if (isset(THEME_MODES[$mode])) save_setting('theme_mode', $mode);
-    foreach (THEME_VARIANTS as $vk => [, $vo]) {
-        $vv = (string)($_POST['style_' . $vk] ?? '');
-        if (isset($vo[$vv])) save_setting('style_' . $vk, $vv);
-    }
+    if (!empty($_POST['demo']) && (int)$pdo->query('SELECT COUNT(*) FROM properties')->fetchColumn() === 0) { try { demo_load(); } catch (Throwable $ex) { flash('Sample content could not be added: ' . $ex->getMessage(), 'err'); } }
+    $look = (string)($_POST['look'] ?? '');
+    if ($look !== '') look_apply($look, true);
     flash('You are set up. Next: add your first property and arrange the home page.');
     redirect('admin/');
 }
@@ -44,15 +38,18 @@ admin_head('Quick setup');
   <div class="form-grid">
     <?php render_image_field('logo', setting('logo'), 'Logo'); render_image_field('favicon', setting('favicon'), 'Favicon (square)'); ?>
   </div>
-  <label style="max-width:360px">Color scheme
-    <select name="preset"><option value="">Keep current</option><?php foreach (array_keys(theme_presets()) as $n) echo '<option>' . e($n) . '</option>'; ?></select>
-  </label>
-  <div class="form-grid">
-    <label>Light or dark<select name="mode"><?php foreach (THEME_MODES as $k => $l) echo '<option value="' . e($k) . '"' . (theme_settings()['mode'] === $k ? ' selected' : '') . '>' . e($l) . '</option>'; ?></select></label>
-    <?php foreach (THEME_VARIANTS as $vk => [$vl, $vo]): ?>
-      <label><?= e($vl) ?><select name="style_<?= e($vk) ?>"><?php foreach ($vo as $ok => $ol) echo '<option value="' . e($ok) . '"' . (theme_variant($vk) === $ok ? ' selected' : '') . '>' . e($ol) . '</option>'; ?></select></label>
+  <h2>3. Pick a look</h2>
+  <p class="small muted">Sets colors, fonts, layout and a starting home page. You can change every detail later.</p>
+  <div class="looks">
+    <?php foreach (LOOKS as $k => $l): $p = look_palette($l); ?>
+      <label class="look panel" style="cursor:pointer;margin:0">
+        <input type="radio" name="look" value="<?= e($k) ?>" <?= $k === 'classic' ? 'checked' : '' ?>>
+        <span style="display:block;height:10px;margin:6px 0;border-radius:4px;background:linear-gradient(90deg,<?= e($p['primary']) ?> 40%,<?= e($p['tertiary']) ?> 40% 70%,<?= e($p['bg']) ?> 70%);border:1px solid var(--line)"></span>
+        <strong><?= e($l['name']) ?></strong><br><span class="small muted"><?= e($l['desc']) ?></span>
+      </label>
     <?php endforeach; ?>
   </div>
+  <label class="check"><input type="checkbox" name="demo" value="1" checked> Add sample listings and pages so the site doesn't look empty (you can remove them in one click under Tools)</label>
   <p><button class="btn" type="submit">Save and continue</button> <a class="btn btn-ghost" href="<?= url('admin/') ?>">Skip for now</a></p>
 </form>
 <?php admin_foot(); ?>

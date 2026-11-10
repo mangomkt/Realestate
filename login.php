@@ -6,19 +6,20 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $email = strtolower(trim($_POST['email'] ?? ''));
-    $st = db()->prepare('SELECT id, password_hash FROM users WHERE email = ?');
-    $st->execute([$email]);
-    $u = $st->fetch();
-    $_SESSION['fails'] = $_SESSION['fails'] ?? 0;
-    if ($_SESSION['fails'] >= 8) {
-        $error = 'Too many attempts. Please try again later.';
-    } elseif ($u && password_verify($_POST['password'] ?? '', $u['password_hash'])) {
-        session_regenerate_id(true);
-        $_SESSION['uid'] = (int)$u['id'];
-        $_SESSION['fails'] = 0;
-        redirect(safe_next());
+    if (rl_locked('user', $email)) {
+        $error = RL_MESSAGE;
     } else {
-        $_SESSION['fails']++;
+        $st = db()->prepare('SELECT id, password_hash FROM users WHERE email = ?');
+        $st->execute([$email]);
+        $u = $st->fetch();
+        $ok = password_verify($_POST['password'] ?? '', $u['password_hash'] ?? '$2y$10$T.X/eH12UmRHmy3OQDuFAuGubNJ0Va/BwIjEUB83C4TYI63.X5A8G') && $u;
+        if ($ok) {
+            rl_clear('user', $email);
+            session_regenerate_id(true);
+            $_SESSION['uid'] = (int)$u['id'];
+            redirect(safe_next());
+        }
+        rl_fail('user', $email);
         $error = 'Incorrect email or password.';
     }
 }

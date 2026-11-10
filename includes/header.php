@@ -17,6 +17,10 @@ $flash = flash();
   if (!isset($seoData['desc'])) $seoData['desc'] = $metaDesc ?? seo_home()['desc'];
   seo_head($seoData);
 ?>
+<?php if ($fu = theme_font_url()): ?>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="<?= e($fu) ?>">
+<?php endif; ?>
   <link rel="stylesheet" href="<?= url('assets/css/style.css') ?>">
   <style><?= theme_css() ?></style>
   <script>try{var t=localStorage.getItem('re_theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>

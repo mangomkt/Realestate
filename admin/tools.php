@@ -54,6 +54,15 @@ if (($_GET['do'] ?? '') === 'export') {
     echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['demo_load']) || isset($_POST['demo_clear']))) {
+    csrf_check();
+    if (isset($_POST['demo_clear'])) { demo_clear(); flash('Sample content removed.'); }
+    else {
+        try { flash(($n = demo_load()) ? "Added $n sample listings and 3 pages. Remember to clear them before you go live." : 'Sample content is already loaded.'); }
+        catch (Throwable $ex) { flash('Could not add sample content: ' . $ex->getMessage(), 'err'); }
+    }
+    redirect('admin/tools.php');
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['new_key'])) {
     csrf_check();
     save_setting('alerts_key', bin2hex(random_bytes(16)));
@@ -116,6 +125,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 admin_head('Tools');
 $ak = setting('alerts_key');
 ?>
+<div class="panel" style="margin-bottom:18px">
+  <h2>Sample content</h2>
+  <p class="muted">Fills the site with 8 illustrated sample listings (including two "sold") and 3 sample pages, so you can see how everything looks. Sample photos are simple drawings; replace them with real photos. Your own listings and pages are never touched by this, and everything sample can be removed in one click.</p>
+  <form method="post"><?= csrf_field() ?>
+    <?php if (demo_present()): ?><button class="btn btn-ghost" name="demo_clear" value="1" onclick="return confirm('Remove all sample listings, photos and pages?')">Remove sample content</button>
+    <?php else: ?><button class="btn" name="demo_load" value="1">Add sample content</button><?php endif; ?>
+  </form>
+</div>
 <div class="panel">
   <h2>New-listing alerts</h2>
   <p class="muted">Visitors can save searches and get emailed when matching listings appear. Set it up once: add a scheduled job (cron) on your host, hourly or daily, running:</p>

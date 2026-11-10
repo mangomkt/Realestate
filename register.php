@@ -10,6 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($v as $k => $_) $v[$k] = trim($_POST[$k] ?? '');
     $pw = $_POST['password'] ?? '';
     if (($_POST['website'] ?? '') !== '') redirect('');
+    if (rl_locked('register', '')) { flash(RL_MESSAGE, 'err'); redirect('register.php'); }
+    rl_fail('register', '');
     if ($v['name'] === '') $errors[] = 'Please enter your name.';
     if (!filter_var($v['email'], FILTER_VALIDATE_EMAIL)) $errors[] = 'Please enter a valid email.';
     if (strlen($pw) < 8) $errors[] = 'Password must be at least 8 characters.';

@@ -11,9 +11,13 @@ $rootNorm = str_replace('\\', '/', ROOT);
 define('BASE_URL', $docroot !== '' && str_starts_with($rootNorm, $docroot) ? substr($rootNorm, strlen($docroot)) : '');
 
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
     session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => !empty($_SERVER['HTTPS'])]);
     session_start();
 }
+require_once __DIR__ . '/security.php';
+security_headers();
 
 function db(): PDO
 {
@@ -27,6 +31,8 @@ function db(): PDO
     $pdo->exec("
     CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT);
     CREATE TABLE IF NOT EXISTS admins (id INTEGER PRIMARY KEY, email TEXT UNIQUE, password_hash TEXT);
+    CREATE TABLE IF NOT EXISTS login_attempts (id INTEGER PRIMARY KEY, scope TEXT, account TEXT, ip TEXT, ts INTEGER);
+    CREATE INDEX IF NOT EXISTS idx_login_attempts ON login_attempts (scope, ts);
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY, name TEXT, email TEXT UNIQUE, phone TEXT, password_hash TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP);
@@ -76,11 +82,13 @@ function db(): PDO
     if (!in_array('alt', $cols, true)) $pdo->exec("ALTER TABLE property_images ADD COLUMN alt TEXT DEFAULT ''");
     // Columns added after the first release (safe to run on every request: only missing ones are added).
     $newCols = [
-        'nav_items'  => ['parent_id' => 'INTEGER DEFAULT 0'],
+        'nav_items'  => ['parent_id' => 'INTEGER DEFAULT 0', 'is_demo' => 'INTEGER DEFAULT 0'],
+        'admins'     => ['totp_secret' => "TEXT DEFAULT ''", 'totp_enabled' => 'INTEGER DEFAULT 0', 'totp_last' => 'INTEGER DEFAULT 0',
+                         'backup_codes' => "TEXT DEFAULT ''", 'last_login_at' => "TEXT DEFAULT ''", 'last_login_ip' => "TEXT DEFAULT ''"],
         'home_sections' => ['page_id' => 'INTEGER DEFAULT 0'],
         'leads'      => ['status' => "TEXT DEFAULT 'new'", 'notes' => "TEXT DEFAULT ''", 'showing_at' => "TEXT DEFAULT ''"],
-        'pages'      => ['meta_noindex' => 'INTEGER DEFAULT 0', 'meta_image' => "TEXT DEFAULT ''"],
-        'properties' => ['seo_title' => "TEXT DEFAULT ''", 'seo_desc' => "TEXT DEFAULT ''", 'seo_image' => "TEXT DEFAULT ''", 'seo_noindex' => 'INTEGER DEFAULT 0',
+        'pages'      => ['is_demo' => 'INTEGER DEFAULT 0', 'meta_noindex' => 'INTEGER DEFAULT 0', 'meta_image' => "TEXT DEFAULT ''"],
+        'properties' => ['is_demo' => 'INTEGER DEFAULT 0', 'seo_title' => "TEXT DEFAULT ''", 'seo_desc' => "TEXT DEFAULT ''", 'seo_image' => "TEXT DEFAULT ''", 'seo_noindex' => 'INTEGER DEFAULT 0',
                          'year_built' => 'INTEGER DEFAULT 0', 'lot_size' => "TEXT DEFAULT ''", 'parking' => "TEXT DEFAULT ''",
                          'taxes' => 'INTEGER DEFAULT 0', 'maintenance_fee' => 'INTEGER DEFAULT 0', 'features' => "TEXT DEFAULT ''",
                          'virtual_tour_url' => "TEXT DEFAULT ''", 'open_house' => "TEXT DEFAULT ''"],
@@ -97,6 +105,8 @@ require_once __DIR__ . '/seo.php';
 require_once __DIR__ . '/home.php';
 require_once __DIR__ . '/home_admin.php';
 require_once __DIR__ . '/search.php';
+require_once __DIR__ . '/looks.php';
+require_once __DIR__ . '/demo.php';
 
 // ---------- helpers ----------
 function e($v): string { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); }
@@ -148,9 +158,24 @@ function current_user(): ?array
 }
 
 function is_admin(): bool { return !empty($_SESSION['admin']); }
+/** Marks the admin as signed in and records when and from where. */
+function admin_signed_in(int $id): void
+{
+    session_regenerate_id(true);
+    $_SESSION['admin'] = $id;
+    $_SESSION['admin_seen'] = time();
+    unset($_SESSION['admin_pending']);
+    db()->prepare("UPDATE admins SET last_login_at = datetime('now'), last_login_ip = ? WHERE id = ?")->execute([client_ip(), $id]);
+}
+const ADMIN_IDLE_SECONDS = 7200;
 function require_admin(): void
 {
+    if (is_admin() && time() - (int)($_SESSION['admin_seen'] ?? 0) > ADMIN_IDLE_SECONDS) {
+        unset($_SESSION['admin'], $_SESSION['admin_seen']);   // signed out after 2 hours of inactivity
+        flash('You were signed out after a period of inactivity. Please log in again.', 'err');
+    }
     if (!is_admin()) redirect('admin/login.php');
+    $_SESSION['admin_seen'] = time();
 }
 
 /** Registration gate: after N free views, visitors must register (if enabled in settings). */
@@ -267,6 +292,8 @@ function mail_clean(string $v): string { return trim(str_replace(["\r", "\n"], '
 
 function save_lead(array $d): void
 {
+    rl_fail('lead', '');
+    if (rl_failures('lead', '')[0] > 15) return;   // more than 15 form submissions in 15 minutes from one address: drop quietly
     db()->prepare('INSERT INTO leads (user_id, property_id, name, email, phone, message, source, showing_at) VALUES (?,?,?,?,?,?,?,?)')
         ->execute([$d['user_id'] ?? null, $d['property_id'] ?? null, $d['name'], $d['email'], $d['phone'] ?? '', $d['message'] ?? '', $d['source'], $d['showing_at'] ?? '']);
     $to = setting('contact_email');

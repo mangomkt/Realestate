@@ -10,30 +10,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
     $email = strtolower(trim($_POST['email'] ?? ''));
     $pw = $_POST['password'] ?? '';
-    $_SESSION['afails'] = $_SESSION['afails'] ?? 0;
-    if ($_SESSION['afails'] >= 8) {
-        $error = 'Too many attempts. Close the browser and try again later.';
+    if ($hasAdmin && rl_locked('admin', $email)) {
+        $error = RL_MESSAGE;
     } elseif (!$hasAdmin) {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $error = 'Enter a valid email.';
         elseif (strlen($pw) < 10) $error = 'Use a password of at least 10 characters.';
         else {
             db()->prepare('INSERT INTO admins (email, password_hash) VALUES (?, ?)')->execute([$email, password_hash($pw, PASSWORD_DEFAULT)]);
+            $newId = (int)db()->lastInsertId();   // read before any other insert (save_setting would change it)
             if (setting('contact_email') === '') save_setting('contact_email', $email);
-            session_regenerate_id(true);
-            $_SESSION['admin'] = (int)db()->lastInsertId();
+            admin_signed_in($newId);
             redirect('admin/setup.php');
         }
     } else {
-        $st = db()->prepare('SELECT id, password_hash FROM admins WHERE email = ?');
+        $st = db()->prepare('SELECT id, password_hash, totp_enabled FROM admins WHERE email = ?');
         $st->execute([$email]);
         $a = $st->fetch();
-        if ($a && password_verify($pw, $a['password_hash'])) {
+        // Always run a hash check so response time does not reveal whether the email exists.
+        $ok = password_verify($pw, $a['password_hash'] ?? '$2y$10$T.X/eH12UmRHmy3OQDuFAuGubNJ0Va/BwIjEUB83C4TYI63.X5A8G') && $a;
+        if ($ok) {
+            rl_clear('admin', $email);
             session_regenerate_id(true);
-            $_SESSION['admin'] = (int)$a['id'];
-            $_SESSION['afails'] = 0;
+            if ($a['totp_enabled']) {
+                $_SESSION['admin_pending'] = ['id' => (int)$a['id'], 'at' => time()];
+                redirect('admin/two_factor.php');
+            }
+            admin_signed_in((int)$a['id']);
             redirect('admin/');
         }
-        $_SESSION['afails']++;
+        rl_fail('admin', $email);
         $error = 'Incorrect email or password.';
     }
 }

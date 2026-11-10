@@ -9,6 +9,9 @@ require_once __DIR__ . '/includes/bootstrap.php';
 
 function reset_apply(string $pw, string $email): string
 {
+    // Also lifts login lockouts and turns off two-step verification, since this is the "I am locked out" tool.
+    db()->exec("DELETE FROM login_attempts");
+    db()->exec("UPDATE admins SET totp_enabled = 0, totp_secret = '', backup_codes = ''");
     if (strlen($pw) < 10) return 'The password must be at least 10 characters.';
     $pdo = db();
     $email = strtolower(trim($email));

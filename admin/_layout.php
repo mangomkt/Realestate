@@ -19,11 +19,13 @@ function admin_head(string $title): void
     <a href="<?= url('admin/home.php') ?>">Home page</a>
     <a href="<?= url('admin/pages.php') ?>">Pages</a>
     <a href="<?= url('admin/navigation.php') ?>">Navigation</a>
+    <a href="<?= url('admin/looks.php') ?>">Starter looks</a>
     <a href="<?= url('admin/theme.php') ?>">Theme</a>
     <a href="<?= url('admin/seo.php') ?>">SEO</a>
     <a href="<?= url('admin/leads.php') ?>">Leads</a>
     <a href="<?= url('admin/settings.php') ?>">Settings</a>
     <a href="<?= url('admin/tools.php') ?>">Tools</a>
+    <a href="<?= url('admin/security.php') ?>">Security</a>
   </nav>
   <nav><a href="<?= url() ?>" target="_blank">View site</a><a href="<?= url('admin/logout.php') ?>">Log out</a></nav>
 </div></div>

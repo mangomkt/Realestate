@@ -103,7 +103,8 @@
     var r = radii[form.elements.radius.value] || radii['12'];
     var v = paletteVars(p, mode === 'dark');
     v['--radius'] = r[0] + 'px'; v['--radius-btn'] = r[1] + 'px'; v['--radius-in'] = r[2] + 'px';
-    v['--font'] = fonts[form.elements.font.value] || fonts.system;
+    var fp = fonts[form.elements.font.value] || fonts.system;
+    v['--font'] = fp[0]; v['--font-head'] = fp[1];
     Object.keys(v).forEach(function (k) { pv.style.setProperty(k, v[k]); });
     pv.style.colorScheme = mode;
     document.getElementById('pv-mode').textContent = '(' + mode + ')';

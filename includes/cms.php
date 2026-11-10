@@ -20,11 +20,25 @@ const THEME_DEFAULTS = [
     'bg'          => '#ffffff',
     'surface'     => '#ffffff',
 ];
+// key => [label, body stack, heading stack, Google Fonts query ("" = needs no download)]
 const THEME_FONTS = [
-    'system'   => ['System sans-serif', 'system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif'],
-    'serif'    => ['Classic serif (Georgia)', 'Georgia,"Times New Roman",Times,serif'],
-    'humanist' => ['Humanist sans', '"Gill Sans","Gill Sans MT",Calibri,"Trebuchet MS",sans-serif'],
+    'system'    => ['System sans-serif', 'system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', 'system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', ''],
+    'serif'     => ['Classic serif (Georgia)', 'Georgia,"Times New Roman",Times,serif', 'Georgia,"Times New Roman",Times,serif', ''],
+    'humanist'  => ['Humanist sans', '"Gill Sans","Gill Sans MT",Calibri,"Trebuchet MS",sans-serif', '"Gill Sans","Gill Sans MT",Calibri,"Trebuchet MS",sans-serif', ''],
+    'georgia-sans' => ['Georgia headings + system text', 'system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif', 'Georgia,"Times New Roman",Times,serif', ''],
+    'editorial' => ['Playfair Display + Inter (editorial)', 'Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', '"Playfair Display",Georgia,"Times New Roman",serif', 'family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700'],
+    'luxe'      => ['Cormorant Garamond + Lato (luxury)', 'Lato,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', '"Cormorant Garamond",Georgia,"Times New Roman",serif', 'family=Lato:wght@400;700&family=Cormorant+Garamond:wght@600;700'],
+    'modern'    => ['Montserrat + Source Sans 3 (modern)', '"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'Montserrat,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'family=Source+Sans+3:wght@400;600;700&family=Montserrat:wght@600;700;800'],
+    'warm'      => ['Lora + Nunito Sans (warm)', '"Nunito Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'Lora,Georgia,"Times New Roman",serif', 'family=Nunito+Sans:wght@400;600;700&family=Lora:wght@600;700'],
+    'clean'     => ['DM Sans (clean, one font)', '"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', '"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'family=DM+Sans:wght@400;500;700'],
+    'bold'      => ['Poppins (bold, friendly)', 'Poppins,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'Poppins,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif', 'family=Poppins:wght@400;500;600;700'],
 ];
+/** Stylesheet address for the chosen pair's web fonts, or '' when none are needed or they are switched off. */
+function theme_font_url(): string
+{
+    $q = THEME_FONTS[theme_settings()['font']][3];
+    return ($q !== '' && setting('theme_webfonts', '1') === '1') ? 'https://fonts.googleapis.com/css2?' . $q . '&display=swap' : '';
+}
 // radius => [label, card radius px, button radius px, input radius px]
 const THEME_RADII = [
     '0'  => ['Square', 0, 0, 0],
@@ -205,7 +219,7 @@ function theme_css(): string
     $pack = function (array $v): string { $o = ''; foreach ($v as $k => $x) $o .= $k . ':' . $x . ';'; return $o; };
     $light = $pack(theme_palette_vars(theme_palette('light'), false));
     $dark = $pack(theme_palette_vars(theme_palette('dark'), true));
-    $layout = $pack(['--radius' => $rc . 'px', '--radius-btn' => $rb . 'px', '--radius-in' => $ri . 'px', '--font' => THEME_FONTS[$s['font']][1]]);
+    $layout = $pack(['--radius' => $rc . 'px', '--radius-btn' => $rb . 'px', '--radius-in' => $ri . 'px', '--font' => THEME_FONTS[$s['font']][1], '--font-head' => THEME_FONTS[$s['font']][2]]);
     $css = ':root{' . $layout . $light . 'color-scheme:light}';
     $css .= ':root[data-theme="dark"]{' . $dark . 'color-scheme:dark}';
     if ($s['mode'] === 'auto') $css .= '@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){' . $dark . 'color-scheme:dark}}';
